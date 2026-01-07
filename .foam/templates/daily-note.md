@@ -1,5 +1,5 @@
 # ${CURRENT_YEAR}-${CURRENT_MONTH}-${CURRENT_DATE}
-## Overall Progress
+## overall Progress
 - [ ] 
 
-## Elaboration into overall progress
+## elaboration into overall progress
