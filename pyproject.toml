@@ -8,5 +8,6 @@ dependencies = [
     "ipykernel>=6.29.5",
     "marimo>=0.18.4",
     "openai>=1.91.0",
+    "opencv-python-headless>=4.12.0.88",
     "python-dotenv>=1.1.0",
 ]
