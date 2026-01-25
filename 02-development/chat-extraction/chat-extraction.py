@@ -3930,11 +3930,10 @@ def _(mo):
 
 
 @app.cell
-def _(Path):
+def _(Path, asdict, json):
     from __future__ import annotations
 
-    from dataclasses import dataclass, asdict
-    import json
+    from dataclasses import dataclass
     import subprocess
     from typing import Iterable, Optional
 
@@ -3944,34 +3943,17 @@ def _(Path):
 
     @dataclass(frozen=True)
     class KeptFrame:
-        """
-        Metadata for a kept frame.
-
-        Fields:
-          - index: 0-based index in the decoded candidate stream (after optional fps sampling).
-          - t_sec: approximate timestamp in seconds for this decoded frame.
-          - dy_px: estimated vertical scroll (pixels) since the last kept frame.
-          - corr: alignment correlation score (higher is better).
-          - bottom_change: mean absolute difference in the bottom band vs last kept frame.
-          - saved_path: path to a saved PNG (if saving enabled), else None.
-        """
         index: int
         t_sec: float
-        dy_px: int
+        dy_step_px: int
         corr: float
         bottom_change: float
         saved_path: Optional[str]
 
 
     def _ffprobe_video_info(video: Path) -> tuple[int, int, float]:
-        """
-        Returns (width, height, fps_estimate).
-
-        fps_estimate is derived from avg_frame_rate when available.
-        """
         cmd = [
-            "ffprobe",
-            "-v", "error",
+            "ffprobe", "-v", "error",
             "-select_streams", "v:0",
             "-show_entries", "stream=width,height,avg_frame_rate,r_frame_rate",
             "-of", "json",
@@ -3979,52 +3961,80 @@ def _(Path):
         ]
         out = subprocess.check_output(cmd)
         info = json.loads(out.decode("utf-8"))
-        stream = info["streams"][0]
-        w = int(stream["width"])
-        h = int(stream["height"])
+        s = info["streams"][0]
+        w, h = int(s["width"]), int(s["height"])
 
-        def parse_rate(s: str) -> float:
-            # e.g. "30000/1001"
-            if not s or s == "0/0":
+        def parse_rate(x: str) -> float:
+            if not x or x == "0/0":
                 return 0.0
-            num, den = s.split("/")
-            num_f = float(num)
-            den_f = float(den) if float(den) != 0 else 1.0
-            return num_f / den_f
+            n, d = x.split("/")
+            n = float(n)
+            d = float(d) if float(d) != 0 else 1.0
+            return n / d
 
-        fps = parse_rate(stream.get("avg_frame_rate", "")) or parse_rate(stream.get("r_frame_rate", "")) or 0.0
-        if fps <= 0:
-            fps = 1.0
+        fps = parse_rate(s.get("avg_frame_rate", "")) or parse_rate(s.get("r_frame_rate", "")) or 1.0
         return w, h, fps
 
 
+    def _iter_rgb_frames_ffmpeg(
+        video: Path,
+        w: int,
+        h: int,
+        *,
+        sample_fps: Optional[float] = None,
+        start_sec: Optional[float] = None,
+        duration_sec: Optional[float] = None,
+        keyframes_only: bool = False,
+    ) -> Iterable[np.ndarray]:
+        cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-vsync", "0"]
+
+        if start_sec is not None:
+            cmd += ["-ss", str(float(start_sec))]
+        if duration_sec is not None:
+            cmd += ["-t", str(float(duration_sec))]
+        if keyframes_only:
+            cmd += ["-skip_frame", "nokey"]
+
+        cmd += ["-i", str(video), "-an"]
+
+        if sample_fps is not None:
+            cmd += ["-vf", f"fps={sample_fps}"]
+
+        cmd += ["-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"]
+
+        frame_size = w * h * 3
+        with subprocess.Popen(cmd, stdout=subprocess.PIPE) as proc:
+            assert proc.stdout is not None
+            while True:
+                buf = proc.stdout.read(frame_size)
+                if not buf or len(buf) < frame_size:
+                    break
+                rgb = np.frombuffer(buf, dtype=np.uint8).reshape((h, w, 3))
+                yield rgb
+            proc.wait()
+
+
+    def _luma_u8(rgb: np.ndarray) -> np.ndarray:
+        # ITU-R BT.601 luma approximation
+        r = rgb[..., 0].astype(np.float32)
+        g = rgb[..., 1].astype(np.float32)
+        b = rgb[..., 2].astype(np.float32)
+        y = 0.299 * r + 0.587 * g + 0.114 * b
+        return np.clip(y, 0, 255).astype(np.uint8)
+
+
     def _row_energy(gray_u8: np.ndarray, downsample: int = 2) -> np.ndarray:
-        """
-        Computes a normalized 1D "edge energy per row" vector used for vertical alignment.
-        """
         a = gray_u8[::downsample, ::downsample].astype(np.float32) / 255.0
-
-        # Cheap gradient magnitude proxy
-        dx = np.abs(a[:, 1:] - a[:, :-1])              # (H, W-1)
-        dy = np.abs(a[1:, :] - a[:-1, :])              # (H-1, W)
-        row_dx = dx.mean(axis=1)                       # (H,)
-        row_dy = dy.mean(axis=1)                       # (H-1,)
-        row_dy = np.concatenate([row_dy, row_dy[-1:]]) # pad to (H,)
-
-        row = row_dx + row_dy
-        row = (row - row.mean()) / (row.std() + 1e-6)
-        return row
+        dx = np.abs(a[:, 1:] - a[:, :-1]).mean(axis=1)
+        dy = np.abs(a[1:, :] - a[:-1, :]).mean(axis=1)
+        dy = np.concatenate([dy, dy[-1:]])
+        r = dx + dy
+        return (r - r.mean()) / (r.std() + 1e-6)
 
 
     def _estimate_dy(row_a: np.ndarray, row_b: np.ndarray, max_shift: int) -> tuple[int, float]:
-        """
-        Estimates vertical shift dy that best aligns row_a to row_b using correlation.
-        Returns (dy, corr). Higher corr is better.
-        """
-        best_s = 0
-        best_corr = -1e9
+        best_s, best_corr = 0, -1e9
         n = len(row_a)
-
         for s in range(-max_shift, max_shift + 1):
             if s >= 0:
                 x = row_a[s:]
@@ -4036,206 +4046,132 @@ def _(Path):
                 continue
             corr = float((x * y).mean())
             if corr > best_corr:
-                best_corr = corr
-                best_s = s
+                best_corr, best_s = corr, s
         return best_s, best_corr
 
 
     def _estimate_line_height(row: np.ndarray) -> int:
-        """
-        Roughly estimates line spacing in pixels (in the *downsampled* row domain).
-        Returns a median peak spacing; falls back if peak detection is weak.
-        """
         thr = float(np.quantile(row, 0.85))
-        peaks: list[int] = []
-        for i in range(2, len(row) - 2):
-            if row[i] > thr and row[i] > row[i - 1] and row[i] > row[i + 1]:
-                peaks.append(i)
-
+        peaks = [i for i in range(2, len(row) - 2) if row[i] > thr and row[i] > row[i - 1] and row[i] > row[i + 1]]
         if len(peaks) < 6:
-            return 18  # downsampled fallback (~36 px if downsample=2)
-
+            return 18  # downsampled fallback (~36px if downsample=2)
         d = np.diff(peaks)
-        d = d[(d >= 9) & (d <= 35)]  # downsampled plausible range
-        if len(d) == 0:
-            return 18
-        return int(np.median(d))
+        d = d[(d >= 9) & (d <= 35)]
+        return int(np.median(d)) if len(d) else 18
 
 
-    def _bottom_change(a_u8: np.ndarray, b_u8: np.ndarray, band_h: int, downsample: int = 2) -> float:
-        """
-        Mean absolute difference on the bottom band (after downsampling).
-        """
-        a = a_u8[::downsample, ::downsample].astype(np.float32) / 255.0
-        b = b_u8[::downsample, ::downsample].astype(np.float32) / 255.0
+    def _bottom_change(gray_a: np.ndarray, gray_b: np.ndarray, band_h: int, downsample: int = 2) -> float:
+        a = gray_a[::downsample, ::downsample].astype(np.float32) / 255.0
+        b = gray_b[::downsample, ::downsample].astype(np.float32) / 255.0
         bh = max(1, band_h // downsample)
-        aa = a[-bh:, :]
-        bb = b[-bh:, :]
-        return float(np.mean(np.abs(aa - bb)))
+        return float(np.mean(np.abs(a[-bh:, :] - b[-bh:, :])))
 
 
-    def _iter_gray_frames_ffmpeg(
-        video: Path,
-        width: int,
-        height: int,
-        *,
-        sample_fps: Optional[float] = None,
-    ) -> Iterable[np.ndarray]:
-        """
-        Yields grayscale frames as uint8 arrays (H, W) from ffmpeg.
-        If sample_fps is provided, frames are sampled at that rate.
-        """
-        vf = "format=gray"
-        if sample_fps is not None:
-            vf = f"fps={sample_fps},{vf}"
-
-        cmd = [
-            "ffmpeg",
-            "-hide_banner",
-            "-loglevel", "error",
-            "-vsync", "0",
-            "-i", str(video),
-            "-an",
-            "-vf", vf,
-            "-f", "rawvideo",
-            "-pix_fmt", "gray",
-            "pipe:1",
-        ]
-
-        frame_size = width * height
-        with subprocess.Popen(cmd, stdout=subprocess.PIPE) as proc:
-            assert proc.stdout is not None
-            while True:
-                buf = proc.stdout.read(frame_size)
-                if not buf or len(buf) < frame_size:
-                    break
-                frame = np.frombuffer(buf, dtype=np.uint8).reshape((height, width))
-                yield frame
-            proc.wait()
-
-
-    def reduce_chat_frames_by_scroll(
+    def reduce_chat_frames_by_scroll_color(
         video_path: Path | str,
         out_dir: Path | str,
         *,
+        start_sec: float | None = None,
+        duration_sec: float | None = None,
         sample_fps: Optional[float] = None,
-        lines_per_keep: int = 8,
+        keyframes_only: bool = False,
+        lines_per_keep: int = 12,
         min_corr: float = 0.75,
         max_shift_px: int = 220,
         bottom_band_h_px: int = 160,
-        bottom_change_thr: float = 0.05,
+        bottom_change_thr: float = 0.16,
+        min_keep_interval_sec: float = 0.8,     # additional reduction lever
+        burst_override_mult: float = 2.0,       # allow keep sooner if scroll is huge
         downsample: int = 2,
         save_png: bool = True,
         write_report_json: bool = True,
+        progress_every: int = 1000,
     ) -> list[KeptFrame]:
-        """
-        Reduces a chat-overlay video to a smaller set of representative frames using scroll-distance gating.
-
-        Strategy:
-          - Estimate vertical scroll dy between frames without OCR (row-energy correlation).
-          - Accumulate scroll since last kept frame.
-          - Keep a frame when:
-              (accum_scroll >= lines_per_keep * line_height) OR
-              (bottom band changed enough to indicate new content/emote-only lines)
-
-        Args:
-          video_path: path to the cropped chat video.
-          out_dir: directory to write selected PNGs and a JSON report.
-          sample_fps: if set, decode frames at this FPS (recommended if input is high-FPS).
-                      if None, uses the video’s native decode rate.
-          lines_per_keep: how many chat lines worth of scroll to allow before keeping a new frame.
-          min_corr: minimum alignment correlation for accepting a dy estimate.
-          max_shift_px: maximum vertical shift to search (pixels at full resolution).
-          bottom_band_h_px: height (pixels) of the bottom band used for change detection.
-          bottom_change_thr: threshold for bottom band change to force a keep.
-          downsample: internal downsampling factor for alignment/change computation.
-          save_png: if True, saves kept frames as PNG files.
-          write_report_json: if True, writes a report.json containing kept frame metadata.
-
-        Returns:
-          List of KeptFrame entries in chronological order.
-        """
         video = Path(video_path)
         out = Path(out_dir)
         out.mkdir(parents=True, exist_ok=True)
 
         w, h, fps_native = _ffprobe_video_info(video)
         fps_used = float(sample_fps) if sample_fps is not None else float(fps_native)
+        t0 = float(start_sec or 0.0)
 
-        kept: list[KeptFrame] = []
-
-        last_kept_frame: Optional[np.ndarray] = None
-        last_kept_row: Optional[np.ndarray] = None
-        accum_scroll = 0.0
-        line_h_ds: Optional[int] = None  # line height in downsampled-row units
-
-        # Convert max_shift into downsampled units for speed
         max_shift_ds = max(10, int(max_shift_px / downsample))
 
-        for i, frame_u8 in enumerate(_iter_gray_frames_ffmpeg(video, w, h, sample_fps=sample_fps)):
-            t_sec = i / fps_used
+        kept: list[KeptFrame] = []
+        prev_gray: Optional[np.ndarray] = None
+        prev_row: Optional[np.ndarray] = None
+        line_h_ds: Optional[int] = None
 
-            row = _row_energy(frame_u8, downsample=downsample)
+        accum_scroll = 0.0
+        last_keep_t = -1e9
 
-            if last_kept_frame is None:
-                # Estimate line height once from the first kept frame
+        for i, rgb in enumerate(
+            _iter_rgb_frames_ffmpeg(
+                video, w, h,
+                sample_fps=sample_fps,
+                start_sec=start_sec,
+                duration_sec=duration_sec,
+                keyframes_only=keyframes_only,
+            )
+        ):
+            if progress_every and (i % progress_every == 0) and i > 0:
+                print(f"[reduce] decoded={i} kept={len(kept)}")
+
+            t_sec = t0 + (i / fps_used)
+            gray = _luma_u8(rgb)
+            row = _row_energy(gray, downsample=downsample)
+
+            if prev_gray is None:
                 line_h_ds = _estimate_line_height(row)
                 save_path = None
                 if save_png:
                     save_path = str(out / f"frame_{i:06d}_t{t_sec:010.3f}.png")
-                    Image.fromarray(frame_u8, mode="L").save(save_path)
-                entry = KeptFrame(
-                    index=i,
-                    t_sec=float(t_sec),
-                    dy_px=0,
-                    corr=1.0,
-                    bottom_change=0.0,
-                    saved_path=save_path,
-                )
-                kept.append(entry)
-                last_kept_frame = frame_u8
-                last_kept_row = row
-                accum_scroll = 0.0
+                    Image.fromarray(rgb, mode="RGB").save(save_path)
+                kept.append(KeptFrame(i, float(t_sec), 0, 1.0, 0.0, save_path))
+                prev_gray, prev_row = gray, row
+                last_keep_t = t_sec
                 continue
 
-            assert last_kept_row is not None and last_kept_frame is not None and line_h_ds is not None
+            assert prev_row is not None and prev_gray is not None and line_h_ds is not None
 
-            dy_ds, corr = _estimate_dy(last_kept_row, row, max_shift=max_shift_ds)
-            if corr < min_corr:
-                continue
+            dy_ds, corr = _estimate_dy(prev_row, row, max_shift=max_shift_ds)
+            if corr >= min_corr:
+                accum_scroll += abs(dy_ds)
+            else:
+                dy_ds = 0
 
-            accum_scroll += abs(dy_ds)
+            bc = _bottom_change(prev_gray, gray, band_h=bottom_band_h_px, downsample=downsample)
 
-            bc = _bottom_change(last_kept_frame, frame_u8, band_h=bottom_band_h_px, downsample=downsample)
+            # bottom-change only forces a keep when there's little/no scroll
+            force_new = (abs(dy_ds) < 0.5 * line_h_ds) and (bc >= bottom_change_thr)
 
-            keep_now = (accum_scroll >= lines_per_keep * line_h_ds) or (bc >= bottom_change_thr)
+            scroll_trigger = accum_scroll >= (lines_per_keep * line_h_ds)
+            burst_override = accum_scroll >= (burst_override_mult * lines_per_keep * line_h_ds)
+
+            interval_ok = (t_sec - last_keep_t) >= min_keep_interval_sec
+            keep_now = ((scroll_trigger and interval_ok) or burst_override) or (force_new and interval_ok)
 
             if keep_now:
                 save_path = None
                 if save_png:
                     save_path = str(out / f"frame_{i:06d}_t{t_sec:010.3f}.png")
-                    Image.fromarray(frame_u8, mode="L").save(save_path)
-
-                entry = KeptFrame(
-                    index=i,
-                    t_sec=float(t_sec),
-                    dy_px=int(dy_ds * downsample),
-                    corr=float(corr),
-                    bottom_change=float(bc),
-                    saved_path=save_path,
-                )
-                kept.append(entry)
-                last_kept_frame = frame_u8
-                last_kept_row = row
+                    Image.fromarray(rgb, mode="RGB").save(save_path)
+                kept.append(KeptFrame(i, float(t_sec), int(dy_ds * downsample), float(corr), float(bc), save_path))
                 accum_scroll = 0.0
+                last_keep_t = t_sec
+
+            prev_gray, prev_row = gray, row
 
         if write_report_json:
-            report_path = out / "report.json"
             report = {
                 "video": str(video),
+                "start_sec": start_sec,
+                "duration_sec": duration_sec,
                 "sample_fps": sample_fps,
+                "keyframes_only": keyframes_only,
                 "fps_used_for_timestamps": fps_used,
                 "lines_per_keep": lines_per_keep,
+                "min_keep_interval_sec": min_keep_interval_sec,
                 "min_corr": min_corr,
                 "max_shift_px": max_shift_px,
                 "bottom_band_h_px": bottom_band_h_px,
@@ -4244,38 +4180,76 @@ def _(Path):
                 "kept_count": len(kept),
                 "kept": [asdict(k) for k in kept],
             }
-            report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+            (out / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
 
         return kept
-
-
-    # Example:
-    # out_dir = ai_invasion_1_cropped.parent / "_selected_frames_scroll"
-    # kept = reduce_chat_frames_by_scroll(
-    #     ai_invasion_1_cropped,
-    #     out_dir,
-    #     sample_fps=None,      # set e.g. 1.0 or 2.0 if your input is high-FPS
-    #     lines_per_keep=8,     # increase to reduce more (e.g., 10–12)
-    # )
-    # print(len(kept), "frames kept")
 
     return (
         Image,
         Optional,
-        asdict,
         dataclass,
-        json,
         np,
-        reduce_chat_frames_by_scroll,
+        reduce_chat_frames_by_scroll_color,
         subprocess,
     )
 
 
 @app.cell
-def _(ai_invasion_1_cropped, data_dir, reduce_chat_frames_by_scroll):
-    out_dir = data_dir / "chat_frames"
-    kept = reduce_chat_frames_by_scroll(ai_invasion_1_cropped, out_dir, lines_per_keep=8)
+def _(ai_invasion_1_cropped, data_dir, reduce_chat_frames_by_scroll_color):
+    out_dir = data_dir / "chat_frames_test_30s_color"
+    kept = reduce_chat_frames_by_scroll_color(
+        ai_invasion_1_cropped,
+        out_dir,
+        start_sec=0,
+        duration_sec=30,
+        sample_fps=3.0,          # big reduction vs 60fps decode
+        lines_per_keep=14,       # increase to reduce further
+        min_keep_interval_sec=1.0,
+        bottom_change_thr=0.18,  # raise if it still keeps too often
+        progress_every=500,
+    )
 
+    return (kept,)
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell
+def _(kept):
+    kept
+    return
+
+
+@app.cell
+def _(ai_invasion_1_cropped, data_dir, reduce_chat_frames_by_scroll_color):
+    test_dir = data_dir / "chat_frames"
+    full_frames = reduce_chat_frames_by_scroll_color(
+        ai_invasion_1_cropped,
+        test_dir,
+        sample_fps=3.0,
+        lines_per_keep=14,
+        min_keep_interval_sec=1.0,
+        bottom_change_thr=0.18,
+        save_png=True,          # selection only
+        write_report_json=True,
+        progress_every=5000,
+    )
+
+    return full_frames, test_dir
+
+
+@app.cell
+def _(test_dir):
+    test_dir
+    return
+
+
+@app.cell
+def _(full_frames):
+    len(full_frames)
     return
 
 

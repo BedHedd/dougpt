@@ -1,0 +1,66 @@
+{
+  "video": "/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/large-files/Doug_and_Twitch_Chat_TAKE_OVER_EUROPE-VpmmuHlLPM0__crop_no_audio__crop_0x14_350x460__s2/cropped_Doug_and_Twitch_Chat_TAKE_OVER_EUROPE-VpmmuHlLPM0.mkv",
+  "start_sec": 0,
+  "duration_sec": 30,
+  "sample_fps": 3.0,
+  "keyframes_only": false,
+  "fps_used_for_timestamps": 3.0,
+  "lines_per_keep": 14,
+  "min_keep_interval_sec": 1.0,
+  "min_corr": 0.75,
+  "max_shift_px": 220,
+  "bottom_band_h_px": 160,
+  "bottom_change_thr": 0.18,
+  "downsample": 2,
+  "kept_count": 6,
+  "kept": [
+    {
+      "index": 0,
+      "t_sec": 0.0,
+      "dy_step_px": 0,
+      "corr": 1.0,
+      "bottom_change": 0.0,
+      "saved_path": "/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/dougpt/00-supporting-files/data/chat_frames_test_30s_color/frame_000000_t000000.000.png"
+    },
+    {
+      "index": 23,
+      "t_sec": 7.666666666666667,
+      "dy_step_px": 220,
+      "corr": 0.9802643656730652,
+      "bottom_change": 0.11308824270963669,
+      "saved_path": "/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/dougpt/00-supporting-files/data/chat_frames_test_30s_color/frame_000023_t000007.667.png"
+    },
+    {
+      "index": 32,
+      "t_sec": 10.666666666666666,
+      "dy_step_px": 56,
+      "corr": 0.8860421180725098,
+      "bottom_change": 0.10728445649147034,
+      "saved_path": "/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/dougpt/00-supporting-files/data/chat_frames_test_30s_color/frame_000032_t000010.667.png"
+    },
+    {
+      "index": 40,
+      "t_sec": 13.333333333333334,
+      "dy_step_px": 166,
+      "corr": 0.9802262187004089,
+      "bottom_change": 0.08035419881343842,
+      "saved_path": "/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/dougpt/00-supporting-files/data/chat_frames_test_30s_color/frame_000040_t000013.333.png"
+    },
+    {
+      "index": 53,
+      "t_sec": 17.666666666666668,
+      "dy_step_px": 56,
+      "corr": 0.9033929109573364,
+      "bottom_change": 0.09733207523822784,
+      "saved_path": "/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/dougpt/00-supporting-files/data/chat_frames_test_30s_color/frame_000053_t000017.667.png"
+    },
+    {
+      "index": 80,
+      "t_sec": 26.666666666666668,
+      "dy_step_px": 110,
+      "corr": 0.8985148072242737,
+      "bottom_change": 0.10034511238336563,
+      "saved_path": "/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/dougpt/00-supporting-files/data/chat_frames_test_30s_color/frame_000080_t000026.667.png"
+    }
+  ]
+}
