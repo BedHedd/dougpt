@@ -79,6 +79,13 @@ def _(supporting_files):
 
 
 @app.cell
+def _(supporting_files):
+    example_frame = supporting_files / "data" / "example.png"
+    example_frame
+    return (example_frame,)
+
+
+@app.cell
 def _(compressed_frame, p, shlex, subprocess):
     # import subprocess, shlex
 
@@ -574,13 +581,15 @@ def _(mo):
 
 
 @app.cell
-def _(List, supporting_files):
+def _(supporting_files):
     import mimetypes
     from pydantic import BaseModel, Field
+    from typing import List
 
 
     # ---------- config ----------
-    FRAMES_DIR = supporting_files / "data" / "cropped_kf_cache_test"
+    # FRAMES_DIR = supporting_files / "data" / "cropped_kf_cache_test"
+    FRAMES_DIR = supporting_files / "data" / "chat_frames_test_30s_color"
     # MODEL = "qwen/qwen3-vl-8b" 
     # MODEL = "lmstudio-community/Qwen3-VL-8B-Instruct-GGUF"
     MODEL = "lmstudio-community/Qwen3-VL-30B-A3B-Instruct-GGUF"
@@ -599,72 +608,87 @@ def _(List, supporting_files):
 
 
     # ---------- structured output ----------
-    class EmoteBox(BaseModel):
-        x: int = Field(..., description="Top-left X coordinate of the emote bounding box (pixels, image coordinate space).")
-        y: int = Field(..., description="Top-left Y coordinate of the emote bounding box (pixels, image coordinate space).")
-        w: int = Field(..., description="Width of the emote bounding box (pixels).")
-        h: int = Field(..., description="Height of the emote bounding box (pixels).")
-        description: str = Field(..., description="Short human-readable description of the emote (e.g., 'PepeHands', 'Luigi'). use a full description rather than a the emoji shorthand")
+    # class EmoteBox(BaseModel):
+    #     x: int = Field(..., description="Top-left X coordinate of the emote bounding box (pixels, image coordinate space).")
+    #     y: int = Field(..., description="Top-left Y coordinate of the emote bounding box (pixels, image coordinate space).")
+    #     w: int = Field(..., description="Width of the emote bounding box (pixels).")
+    #     h: int = Field(..., description="Height of the emote bounding box (pixels).")
+    #     description: str = Field(..., description="Short human-readable description of the emote (e.g., 'PepeHands', 'Luigi'). use a full description rather than a the emoji shorthand")
 
 
-    class ChatMessage(BaseModel):
-        user_name: str = Field(..., description="Username as shown in the chat UI for this line (no inferred/extra metadata).")
-        message: str = Field(..., description="Visible message text and emoji (described as 1 word) for this chat line. If emotes and emojis are in the message, include them inline and use a structure of `:emote_described:` `:another_emote_described:` ...")
-        emotes: List[EmoteBox] = Field(
-            default_factory=list,
-            description="List of emotes found on this chat line, each with an approximate bounding box in pixels. ",
-        )
+    # class ChatMessage(BaseModel):
+    #     user_name: str = Field(..., description="Username as shown in the chat UI for this line (no inferred/extra metadata).")
+    #     message: str = Field(..., description="Visible message text and emoji (described as 1 word) for this chat line. If emotes and emojis are in the message, include them inline and use a structure of `:emote_described:` `:another_emote_described:` ...")
+    #     emotes: List[EmoteBox] = Field(
+    #         default_factory=list,
+    #         description="List of emotes found on this chat line, each with an approximate bounding box in pixels. ",
+    #     )
 
 
-    class ImageOnlyExtraction(BaseModel):
-        chat_messages: List[ChatMessage] = Field(
-            default_factory=list,
-            description="All visible chat lines in a single image, in top-to-bottom reading order.",
-        )
+    # class ImageOnlyExtraction(BaseModel):
+    #     chat_messages: List[ChatMessage] = Field(
+    #         default_factory=list,
+    #         description="All visible chat lines in a single image, in top-to-bottom reading order.",
+    #     )
 
 
-    class BatchExtraction(BaseModel):
-        images: List[ImageOnlyExtraction] = Field(
-            ...,
-            description="Exactly 8 per-image extractions, in the same order as the 8 input images.",
-        )
-    return BatchExtraction, FRAMES_DIR, MODEL
+    # class BatchExtraction(BaseModel):
+    #     images: List[ImageOnlyExtraction] = Field(
+    #         ...,
+    #         description="Exactly 8 per-image extractions, in the same order as the 8 input images.",
+    #     )
+    return BaseModel, FRAMES_DIR, Field, List, MODEL
 
 
 @app.cell
-def _(FRAMES_DIR, image_file_to_data_url):
-    # ---------- pick first 8 files ----------
-    exts = {".jpg", ".jpeg", ".png", ".webp"}
-    files = sorted([p for p in FRAMES_DIR.iterdir() if p.is_file() and p.suffix.lower() in exts])[:8]
-    if len(files) < 8:
-        raise RuntimeError(f"Need at least 8 images in {FRAMES_DIR.resolve()}, found {len(files)}")
+def _():
+    # # ---------- pick first 8 files ----------
+    # exts = {".jpg", ".jpeg", ".png", ".webp"}
+    # files = sorted([p for p in FRAMES_DIR.iterdir() if p.is_file() and p.suffix.lower() in exts])[:1]
+    # # if len(files) < 8:
+    # #     raise RuntimeError(f"Need at least 8 images in {FRAMES_DIR.resolve()}, found {len(files)}")
 
-    content = [
-        {
-            "type": "text",
-            "text": (
-                "You will receive multiple chat screenshots with overlapping messages"
-                "Return ONLY JSON matching the provided schema."
-                "For each image, extract ALL new unique visible chat lines."
-                "Include usernames + message text and emotes/emojis. If message text is not visible, use '(No message text visible)'."
-                "For each message line, list any emotes with approximate bounding boxes in pixels."
-                "When detecting and writing emotes/emojis, use the structure of `:describe_this_emoji:`"
-                "When emojis are detected in a message, please include the 1 word description in the structure  `:emojidescription:` in the message, do not remove it from the message"
-                "For example: 'I like this song :dancefrog: :dancefrog: it's the best', use the emote/emoji description in the message"
-                # "Coordinates: x,y are top-left; w,h are width/height. Use integers."
-                # ""
-                # "IMAGES METADATA (echo these fields back exactly per image):"
-            ),
-        }
-    ]
+    # content = [{
+    #     "type": "text",
+    #     "text": (
+    #         "Return ONLY JSON matching the schema.\n"
+    #         "\n"
+    #         "DEFINITION (STRICT)\n"
+    #         "- A 'message emote' is a small pictorial image (often ~square) that appears INLINE in the message body.\n"
+    #         "- DO NOT detect or box any UI icons/badges in the left gutter (hearts, speaker, owl, reply/mod/prediction icons, etc.).\n"
+    #         "- DO NOT box usernames, @mentions, or any text (colored letters are NOT emotes).\n"
+    #         "- DO NOT box avatars next to usernames.\n"
+    #         "\n"
+    #         "MESSAGE TEXT\n"
+    #         "- Keep the visible message text.\n"
+    #         "- Replace each INLINE message emote with :oneword: in the message.\n"
+    #         "- Do not insert :oneword: tokens for left-gutter UI icons.\n"
+    #         "\n"
+    #         "TOKEN↔BOX CONSISTENCY (STRICT)\n"
+    #         "- The number of :oneword: tokens in ChatMessage.message MUST equal len(ChatMessage.emotes).\n"
+    #         "- Order emotes left-to-right.\n"
+    #         "\n"
+    #         "BOUNDING BOX RULES (STRICT)\n"
+    #         "- Boxes must be tight around the emote pixels ONLY.\n"
+    #         "- Boxes must be approximately square: 0.80 <= w/h <= 1.25.\n"
+    #         "- Box size must be within reasonable emote range: 16 <= w,h <= 96.\n"
+    #         "- If a candidate box includes any letters/text, DO NOT output it.\n"
+    #         "- Coordinates are in THIS IMAGE pixel space. Integers.\n"
+    #         "- Clamp: x>=0, y>=0, w>0, h>0, x+w<=IMAGE_W, y+h<=IMAGE_H.\n"
+    #         "\n"
+    #         "If message text is not visible, use '(No message text visible)'.\n"
+    #     ),
+    # }]
 
-    for p in files:
-        image_unique_id = p.stem  # e.g., "kf_000010_22.550s"
-        content.append({"type": "text", "text": f"IMAGE_START {image_unique_id}"})
-        content.append({"type": "image_url", "image_url": {"url": image_file_to_data_url(p)}})
+    # for p in files:
+    #     w, h = Image.open(p).size
+    #     image_unique_id = p.stem
+    #     content.append({"type": "text", "text": f"IMAGE_START {image_unique_id} IMAGE_W {w} IMAGE_H {h}"})
+    #     content.append({"type": "image_url", "image_url": {"url": image_file_to_data_url(p)}})
 
-    messages = [{"role": "user", "content": content}]
-    return messages, p
+
+    # messages = [{"role": "user", "content": content}]
+    return
 
 
 @app.cell
@@ -674,20 +698,20 @@ def _(messages):
 
 
 @app.cell
-def _(BatchExtraction, MODEL, client, messages):
-    # Preferred: structured parse (if your server supports it)
-    compact_resp = client.beta.chat.completions.parse(
-        model=MODEL,
-        response_format=BatchExtraction,
-        messages=messages,
-        temperature=0.2,
-        max_tokens=-1,
-    )
+def _():
+    # # Preferred: structured parse (if your server supports it)
+    # compact_resp = client.beta.chat.completions.parse(
+    #     model=MODEL,
+    #     response_format=BatchExtraction,
+    #     messages=messages,
+    #     temperature=0.2,
+    #     max_tokens=-1,
+    # )
 
-    compact_parsed = compact_resp.choices[0].message.parsed
-    compact_batch = BatchExtraction.model_validate(compact_parsed)
+    # compact_parsed = compact_resp.choices[0].message.parsed
+    # compact_batch = BatchExtraction.model_validate(compact_parsed)
 
-    print(compact_batch.model_dump_json(indent=2))
+    # print(compact_batch.model_dump_json(indent=2))
     return
 
 
@@ -2592,6 +2616,305 @@ def _(mo):
 
 
 @app.cell
+def _(BatchExtraction, MODEL, client, messages):
+    # Preferred: structured parse (if your server supports it)
+    compact_resp = client.beta.chat.completions.parse(
+        model=MODEL,
+        response_format=BatchExtraction,
+        messages=messages,
+        temperature=0.2,
+        max_tokens=-1,
+    )
+
+    compact_parsed = compact_resp.choices[0].message.parsed
+    compact_batch = BatchExtraction.model_validate(compact_parsed)
+
+    print(compact_batch.model_dump_json(indent=2))
+    return (compact_batch,)
+
+
+@app.cell
+def _(files):
+    files
+    return
+
+
+@app.cell
+def _(Image, Iterable, Optional, Path, Union):
+    # from __future__ import annotations
+
+    # from pathlib import Path
+    # from typing import Iterable, Union, Dict, Any, List, Tuple
+    from typing import Dict, Any, Tuple
+    # from PIL import Image, ImageDraw, ImageFont
+    from PIL import ImageDraw, ImageFont
+
+
+    def _safe_clamped_bbox(
+        x: int, y: int, w: int, h: int, *,
+        W: int, H: int,
+        pad: int = 0,
+    ) -> Optional[Tuple[int, int, int, int]]:
+        """
+        Returns (left, top, right, bottom) in image pixel space, or None if bbox
+        is completely outside / invalid after clamping.
+        """
+        if w <= 0 or h <= 0:
+            return None
+
+        left   = x - pad
+        top    = y - pad
+        right  = x + w + pad
+        bottom = y + h + pad
+
+        # If entirely outside, skip
+        if right <= 0 or bottom <= 0 or left >= W or top >= H:
+            return None
+
+        # Clamp to image bounds
+        left   = max(0, min(left, W))
+        top    = max(0, min(top, H))
+        right  = max(0, min(right, W))
+        bottom = max(0, min(bottom, H))
+
+        # If empty after clamp, skip
+        if right <= left or bottom <= top:
+            return None
+
+        return (left, top, right, bottom)
+
+
+    def draw_emote_bboxes_safe(
+        image_path: Union[str, Path],
+        emotes: Iterable[Union[Dict[str, Any], Any]],  # dict or Pydantic EmoteBox
+        out_path: Union[str, Path, None] = None,
+        *,
+        pad: int = 0,
+        stroke: int = 3,
+    ) -> Path:
+        image_path = Path(image_path)
+        if out_path is None:
+            out_path = image_path.with_name(f"{image_path.stem}__bboxes.png")
+        out_path = Path(out_path)
+
+        im = Image.open(image_path).convert("RGBA")
+        W, H = im.size
+        draw = ImageDraw.Draw(im)
+
+        for e in emotes:
+            # support dict or pydantic model
+            if hasattr(e, "model_dump"):
+                e = e.model_dump()
+
+            bbox = _safe_clamped_bbox(
+                int(e["x"]), int(e["y"]), int(e["w"]), int(e["h"]),
+                W=W, H=H, pad=pad,
+            )
+            if bbox is None:
+                continue
+
+            draw.rectangle(bbox, outline=(255, 0, 0, 255), width=stroke)
+
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        im.save(out_path)
+        return out_path
+
+
+    # Example usage:
+    # emotes = [
+    #     {"x": 176, "y": 48, "w": 52, "h": 52, "description": "peeposad"},
+    #     {"x": 385, "y": 821, "w": 51, "h": 52, "description": "mariomusic"},
+    # ]
+    # out_files = crop_emotes("/path/to/image.png", emotes, pad=2)
+    # print(out_files)
+
+    return Any, draw_emote_bboxes_safe
+
+
+@app.cell
+def _(Any, compact_batch):
+    from collections import Counter
+    # from typing import Any
+
+    def iter_emotes(batch: Any):
+        """Yield (image_index, message_index, user_name, message, emote) for every emote."""
+        for img_i, img in enumerate(batch.images):
+            for msg_i, chat in enumerate(img.chat_messages):
+                for em in chat.emotes:
+                    yield img_i, msg_i, chat.user_name, chat.message, em
+
+    # 1) Get a flat list of all emotes
+    all_emotes = [em for *_ , em in iter_emotes(compact_batch)]
+
+    # 2) Print them
+    for img_i, msg_i, user, msg, em in iter_emotes(compact_batch):
+        print(f"[img={img_i} line={msg_i}] {user}: {msg} -> {em.description} @ ({em.x},{em.y},{em.w},{em.h})")
+
+    # 3) Count by description
+    counts = Counter(em.description for em in all_emotes)
+    print(counts)
+
+    # flat list in the exact structure you want
+    emotes = [
+        em.model_dump(include={"x", "y", "w", "h", "description"})
+        for img in compact_batch.images
+        for chat in img.chat_messages
+        for em in chat.emotes
+    ]
+
+    # optional: de-dupe exact duplicates (same box + description) while preserving order
+    seen = set()
+    emotes_deduped = []
+    for e in emotes:
+        key = (e["x"], e["y"], e["w"], e["h"], e["description"])
+        if key not in seen:
+            seen.add(key)
+            emotes_deduped.append(e)
+
+    return (emotes_deduped,)
+
+
+@app.cell
+def _(emotes_deduped):
+    emotes_deduped
+    return
+
+
+@app.cell
+def _(draw_emote_bboxes_safe, emotes_deduped, files):
+    out_files = draw_emote_bboxes_safe(files[0], emotes_deduped, pad=2)
+    print(out_files)
+    return
+
+
+@app.cell
+def _(example_frame, mo):
+    mo.image(example_frame)
+    return
+
+
+@app.cell
+def _(files, mo):
+    mo.image(files[0])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## structured output for just text extraction
+    """)
+    return
+
+
+@app.cell
+def _(BaseModel, Field, List):
+    class EmoteBox(BaseModel):
+        emote_name: str = Field(..., description="a shorthand name for the emote (e.g., 'PepeHands', 'POG', 'OMEGALUL', 'D:'   'CINEMA', 'dougdougPump').")
+        description: str = Field(..., description="Short human-readable description of the emote use a full description rather than a the emoji shorthand")
+
+    class ChatMessage(BaseModel):
+        user_name: str = Field(..., description="Username as shown in the chat UI for this line (no inferred/extra metadata).")
+        message: str = Field(..., description="Visible message text and emoji (described as 1 word) for this chat line. If emotes and emojis are in the message, include them inline and use a structure of `:emote_described:` `:another_emote_described:` ...")
+        emotes: List[EmoteBox] = Field(..., description="list of unique emotes, can be empty ignore images next to the name just focus on emotes/emojis after the name")
+
+    class ChatExtraction(BaseModel):
+        chat_messages: List[ChatMessage] = Field(
+            default_factory=list,
+            description="All visible chat lines in a single image, in top-to-bottom reading order.",
+        )
+    return (ChatExtraction,)
+
+
+@app.cell
+def _(
+    ChatExtraction,
+    FRAMES_DIR,
+    Image,
+    client,
+    example_frame,
+    image_file_to_data_url,
+):
+    # ---------- pick first 8 files ----------
+    exts = {".jpg", ".jpeg", ".png", ".webp"}
+    files = sorted([p for p in FRAMES_DIR.iterdir() if p.is_file() and p.suffix.lower() in exts])[2:3]
+    # if len(files) < 8:
+    #     raise RuntimeError(f"Need at least 8 images in {FRAMES_DIR.resolve()}, found {len(files)}")
+
+    content = [{
+        "type": "text",
+        "text": (
+            "\n"
+            "MESSAGE TEXT\n"
+            "- Keep the visible message text.\n"
+            "- Replace each INLINE message emote with a one word description, include them inline and use a structure of `:emote_described:` `:another_emote_described:` ... in the message.\n"
+            "- Do not insert :oneword: tokens for left-gutter UI icons.\n"
+            "\n"
+            # "TOKEN↔BOX CONSISTENCY (STRICT)\n"
+            "- Order emotes left-to-right.\n"
+            "\n"
+            "If message text is not visible, use '(No message text visible)'.\n"
+        ),}, 
+               {"type": "text", "text": f"for example this image:"},
+               {"type": "image_url", "image_url": {"url": image_file_to_data_url(example_frame)}},
+               {"type": "text", "text": """the output is {
+          "user_name": "ToaSTy_T0aST",
+          "message": "nvm its on a cooldown :pepehands:",
+          "emotes": [
+            {
+              "emote_name": "peepehands",
+              "description": "pepe the frong crying"
+            }
+          ]
+        },
+        {
+          "user_name": "frickelodeon",
+          "message": "@iamkaalhode believe in the doubt",
+          "emotes": []
+        },
+         {
+          "user_name": "sour_appel",
+          "message": "So when Doug won't open the oxygen gates, we have to rely on the fart barons",
+          "emotes": []
+        },
+        """ },
+               {"type": "text", "text": f"the emojis in front of the username are decorators, so avoid adding the icons before the username as emojis:"},
+           
+              ]
+
+    for p in files:
+        w, h = Image.open(p).size
+        image_unique_id = p.stem
+        content.append({"type": "text", "text": "Repeat the process above for the following image"})
+        content.append({"type": "text", "text": f"IMAGE_START {image_unique_id} IMAGE_W {w} IMAGE_H {h}"})
+        content.append({"type": "image_url", "image_url": {"url": image_file_to_data_url(p)}})
+
+
+    messages = [{"role": "user", "content": content}]
+
+
+    _MODEL = "lmstudio-community/Qwen3-VL-30B-A3B-Instruct-GGUF"
+    _MODEL = "qwen3-vl-30b-a3b-thinking"
+    _BASE_URL = "http://localhost:1234/v1"
+    _API_KEY = "unused"
+
+    # Preferred: structured parse (if your server supports it)
+    single_resp = client.beta.chat.completions.parse(
+        model=_MODEL,
+        response_format=ChatExtraction,
+        messages=messages,
+        # temperature=0.2,
+        max_tokens=-1,
+    )
+
+    single_resp_parsed = single_resp.choices[0].message.parsed
+    single_resp_validated = ChatExtraction.model_validate(single_resp_parsed)
+
+    print(single_resp_validated.model_dump_json(indent=2))
+    return files, messages, p
+
+
+@app.cell
 def _():
     return
 
@@ -2708,157 +3031,150 @@ def _():
 
 @app.cell
 def _():
-    from __future__ import annotations
+    # from __future__ import annotations
 
-    from dataclasses import dataclass
-    from typing import Optional, Tuple
-    import subprocess
-    import numpy as np
+    # from dataclasses import dataclass
+    # from typing import Optional, Tuple
+    # import subprocess
+    # import numpy as np
 
-    try:
-        from PIL import Image
-    except Exception as e:
-        raise RuntimeError("Pillow is required for template loading: pip install pillow") from e
-
-
-    @dataclass(frozen=True)
-    class MatchResult:
-        timestamp_s: float
-        score: float
-        y_in_chat_px: int
+    # try:
+    #     from PIL import Image
+    # except Exception as e:
+    #     raise RuntimeError("Pillow is required for template loading: pip install pillow") from e
 
 
-    def find_chat_template_reaches_top_noopencv(
-        video_path: str,
-        template_path: str,
-        chat_rect: Tuple[int, int, int, int],  # (x, y, w, h) in *video* pixels
-        *,
-        x0: int = 0,              # fixed X inside chat crop where the line starts (usually 0)
-        top_px: int = 12,         # trigger when matched y <= top_px
-        search_height: int = 280, # only search within top N pixels of chat crop
-        sample_fps: float = 10.0, # how often to sample compressed_frames
-        match_thr: float = 0.80,  # NCC threshold
-        start_s: float = 0.0,
-        end_s: float = 0.0,       # 0 = until end
-    ) -> Optional[MatchResult]:
-        """
-        Streams cropped compressed_frames via ffmpeg and finds when `template_path` (a cropped image of the chat line)
-        reaches near the top of the chat crop.
-
-        Returns first MatchResult found, else None.
-
-        Requirements:
-          - ffmpeg in PATH
-          - numpy
-          - pillow
-        """
-
-        # Load template as grayscale float32
-        tmpl_u8 = np.array(Image.open(template_path).convert("L"), dtype=np.uint8)
-        th, tw = tmpl_u8.shape[:2]
-        tmpl = tmpl_u8.astype(np.float32)
-        tmpl_z = tmpl - tmpl.mean()
-        tmpl_norm = float(np.sqrt((tmpl_z * tmpl_z).sum()) + 1e-6)
-
-        x, y, w, h = map(int, chat_rect)
-        if tw + x0 > w:
-            raise ValueError(f"Template width {tw} (plus x0={x0}) exceeds chat crop width {w}")
-        if th > h:
-            raise ValueError(f"Template height {th} exceeds chat crop height {h}")
-
-        H = min(int(search_height), h)
-        if H < th:
-            raise ValueError(f"search_height {H} is smaller than template height {th}")
-
-        # ffmpeg: crop chat area, sample fps, grayscale, output raw compressed_frames
-        vf = f"crop={w}:{h}:{x}:{y},fps={sample_fps},format=gray"
-        cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error"]
-        if start_s > 0:
-            cmd += ["-ss", str(start_s)]
-        cmd += ["-i", video_path, "-vf", vf, "-f", "rawvideo", "-pix_fmt", "gray", "-"]
-
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        assert proc.stdout is not None
-
-        compressed_frame_bytes = w * h
-        compressed_frame_index = 0
-
-        # Use sliding_window_view for vectorized Y-only search (X fixed by taking width=tw slice)
-        sliding_window_view = np.lib.stride_tricks.sliding_window_view
-
-        try:
-            while True:
-                if end_s > 0:
-                    # Approximate timestamp based on sampled compressed_frames
-                    t_s = start_s + (compressed_frame_index / sample_fps)
-                    if t_s > end_s:
-                        break
-
-                buf = proc.stdout.read(compressed_frame_bytes)
-                if len(buf) != compressed_frame_bytes:
-                    break
-
-                compressed_frame_index += 1
-                compressed_frame = np.frombuffer(buf, dtype=np.uint8).reshape((h, w))
-                band = compressed_frame[:H, :]  # top search band
-
-                roi = band[:, x0 : x0 + tw]  # (H, tw)
-
-                # Windows along Y only (x dimension is fixed because roi width == tw)
-                # shape: (H-th+1, 1, th, tw) -> squeeze -> (H-th+1, th, tw)
-                windows = sliding_window_view(roi, (th, tw))[:, 0, :, :].astype(np.float32)
-
-                # Normalized cross-correlation per Y
-                win_mean = windows.mean(axis=(1, 2), keepdims=True)
-                win_z = windows - win_mean
-                num = (win_z * tmpl_z).sum(axis=(1, 2))
-                den = np.sqrt((win_z * win_z).sum(axis=(1, 2))) * tmpl_norm + 1e-6
-                scores = num / den
-
-                best_y = int(scores.argmax())
-                best_score = float(scores[best_y])
-
-                if best_score >= match_thr and best_y <= top_px:
-                    # Timestamp is approximate based on fps sampling; good enough for compressed_frame extraction
-                    ts = start_s + ((compressed_frame_index - 1) / sample_fps)
-                    return MatchResult(timestamp_s=float(ts), score=best_score, y_in_chat_px=best_y)
-
-        finally:
-            try:
-                proc.stdout.close()
-            except Exception:
-                pass
-            proc.wait()
-
-        return None
+    # @dataclass(frozen=True)
+    # class MatchResult:
+    #     timestamp_s: float
+    #     score: float
+    #     y_in_chat_px: int
 
 
-    # References (in-code per request):
-    # - ffmpeg filters: https://ffmpeg.org/ffmpeg-filters.html
-    # - ffmpeg rawvideo muxer: https://ffmpeg.org/ffmpeg-formats.html#rawvideo
-    # - numpy sliding_window_view: https://numpy.org/doc/stable/reference/generated/numpy.lib.stride_tricks.sliding_window_view.html
-    return (
-        Image,
-        Optional,
-        dataclass,
-        find_chat_template_reaches_top_noopencv,
-        np,
-        subprocess,
-    )
+    # def find_chat_template_reaches_top_noopencv(
+    #     video_path: str,
+    #     template_path: str,
+    #     chat_rect: Tuple[int, int, int, int],  # (x, y, w, h) in *video* pixels
+    #     *,
+    #     x0: int = 0,              # fixed X inside chat crop where the line starts (usually 0)
+    #     top_px: int = 12,         # trigger when matched y <= top_px
+    #     search_height: int = 280, # only search within top N pixels of chat crop
+    #     sample_fps: float = 10.0, # how often to sample compressed_frames
+    #     match_thr: float = 0.80,  # NCC threshold
+    #     start_s: float = 0.0,
+    #     end_s: float = 0.0,       # 0 = until end
+    # ) -> Optional[MatchResult]:
+    #     """
+    #     Streams cropped compressed_frames via ffmpeg and finds when `template_path` (a cropped image of the chat line)
+    #     reaches near the top of the chat crop.
+
+    #     Returns first MatchResult found, else None.
+
+    #     Requirements:
+    #       - ffmpeg in PATH
+    #       - numpy
+    #       - pillow
+    #     """
+
+    #     # Load template as grayscale float32
+    #     tmpl_u8 = np.array(Image.open(template_path).convert("L"), dtype=np.uint8)
+    #     th, tw = tmpl_u8.shape[:2]
+    #     tmpl = tmpl_u8.astype(np.float32)
+    #     tmpl_z = tmpl - tmpl.mean()
+    #     tmpl_norm = float(np.sqrt((tmpl_z * tmpl_z).sum()) + 1e-6)
+
+    #     x, y, w, h = map(int, chat_rect)
+    #     if tw + x0 > w:
+    #         raise ValueError(f"Template width {tw} (plus x0={x0}) exceeds chat crop width {w}")
+    #     if th > h:
+    #         raise ValueError(f"Template height {th} exceeds chat crop height {h}")
+
+    #     H = min(int(search_height), h)
+    #     if H < th:
+    #         raise ValueError(f"search_height {H} is smaller than template height {th}")
+
+    #     # ffmpeg: crop chat area, sample fps, grayscale, output raw compressed_frames
+    #     vf = f"crop={w}:{h}:{x}:{y},fps={sample_fps},format=gray"
+    #     cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error"]
+    #     if start_s > 0:
+    #         cmd += ["-ss", str(start_s)]
+    #     cmd += ["-i", video_path, "-vf", vf, "-f", "rawvideo", "-pix_fmt", "gray", "-"]
+
+    #     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    #     assert proc.stdout is not None
+
+    #     compressed_frame_bytes = w * h
+    #     compressed_frame_index = 0
+
+    #     # Use sliding_window_view for vectorized Y-only search (X fixed by taking width=tw slice)
+    #     sliding_window_view = np.lib.stride_tricks.sliding_window_view
+
+    #     try:
+    #         while True:
+    #             if end_s > 0:
+    #                 # Approximate timestamp based on sampled compressed_frames
+    #                 t_s = start_s + (compressed_frame_index / sample_fps)
+    #                 if t_s > end_s:
+    #                     break
+
+    #             buf = proc.stdout.read(compressed_frame_bytes)
+    #             if len(buf) != compressed_frame_bytes:
+    #                 break
+
+    #             compressed_frame_index += 1
+    #             compressed_frame = np.frombuffer(buf, dtype=np.uint8).reshape((h, w))
+    #             band = compressed_frame[:H, :]  # top search band
+
+    #             roi = band[:, x0 : x0 + tw]  # (H, tw)
+
+    #             # Windows along Y only (x dimension is fixed because roi width == tw)
+    #             # shape: (H-th+1, 1, th, tw) -> squeeze -> (H-th+1, th, tw)
+    #             windows = sliding_window_view(roi, (th, tw))[:, 0, :, :].astype(np.float32)
+
+    #             # Normalized cross-correlation per Y
+    #             win_mean = windows.mean(axis=(1, 2), keepdims=True)
+    #             win_z = windows - win_mean
+    #             num = (win_z * tmpl_z).sum(axis=(1, 2))
+    #             den = np.sqrt((win_z * win_z).sum(axis=(1, 2))) * tmpl_norm + 1e-6
+    #             scores = num / den
+
+    #             best_y = int(scores.argmax())
+    #             best_score = float(scores[best_y])
+
+    #             if best_score >= match_thr and best_y <= top_px:
+    #                 # Timestamp is approximate based on fps sampling; good enough for compressed_frame extraction
+    #                 ts = start_s + ((compressed_frame_index - 1) / sample_fps)
+    #                 return MatchResult(timestamp_s=float(ts), score=best_score, y_in_chat_px=best_y)
+
+    #     finally:
+    #         try:
+    #             proc.stdout.close()
+    #         except Exception:
+    #             pass
+    #         proc.wait()
+
+    #     return None
+
+
+    # # References (in-code per request):
+    # # - ffmpeg filters: https://ffmpeg.org/ffmpeg-filters.html
+    # # - ffmpeg rawvideo muxer: https://ffmpeg.org/ffmpeg-formats.html#rawvideo
+    # # - numpy sliding_window_view: https://numpy.org/doc/stable/reference/generated/numpy.lib.stride_tricks.sliding_window_view.html
+    return
 
 
 @app.cell
-def _(compressed_frame, find_chat_template_reaches_top_noopencv, video_dir):
-    res = find_chat_template_reaches_top_noopencv(
-        video_path=str(video_dir / "better-video-qualityDoug and Twitch Chat TAKE OVER EUROPE-VpmmuHlLPM0.15mb.webm"),
-        template_path=compressed_frame,
-        chat_rect=(0, 40, 360, 900),  # replace with your chat crop
-        x0=0,
-        top_px=12,
-        search_height=260,
-        sample_fps=10,
-        match_thr=0.85,
-    )
+def _():
+    # res = find_chat_template_reaches_top_noopencv(
+    #     video_path=str(video_dir / "better-video-qualityDoug and Twitch Chat TAKE OVER EUROPE-VpmmuHlLPM0.15mb.webm"),
+    #     template_path=compressed_frame,
+    #     chat_rect=(0, 40, 360, 900),  # replace with your chat crop
+    #     x0=0,
+    #     top_px=12,
+    #     search_height=260,
+    #     sample_fps=10,
+    #     match_thr=0.85,
+    # )
     return
 
 
@@ -2883,7 +3199,7 @@ def _(Path):
     from typing import Union
 
     PathLike = Union[str, Path]
-    return PathLike, asdict, json, re
+    return PathLike, Union, asdict, json, re
 
 
 @app.cell
@@ -3458,390 +3774,390 @@ def _(sel):
 
 
 @app.cell
-def _(Optional, Path, dataclass, subprocess):
-    from dataclasses import field, fields as dc_fields
-    from typing import List, Iterable, Dict
+def _():
+    # from dataclasses import field, fields as dc_fields
+    # from typing import List, Iterable, Dict
 
-    def _desc(s: str) -> dict:
-        return {"desc": s}
+    # def _desc(s: str) -> dict:
+    #     return {"desc": s}
 
-    @dataclass
-    class Preset:
-        """
-        A named encoding recipe expressed in ffmpeg-option terms.
+    # @dataclass
+    # class Preset:
+    #     """
+    #     A named encoding recipe expressed in ffmpeg-option terms.
 
-        This models a common subset of ffmpeg flags and adds "extra args" escape hatches
-        so you can pass arbitrary ffmpeg options without changing the schema.
-        """
+    #     This models a common subset of ffmpeg flags and adds "extra args" escape hatches
+    #     so you can pass arbitrary ffmpeg options without changing the schema.
+    #     """
 
-        # Identity
-        name: str = field(metadata=_desc("Preset identifier used on CLI and appended to output filename."))
-        description: str = field(metadata=_desc("Human-readable summary of what the preset optimizes for."))
+    #     # Identity
+    #     name: str = field(metadata=_desc("Preset identifier used on CLI and appended to output filename."))
+    #     description: str = field(metadata=_desc("Human-readable summary of what the preset optimizes for."))
 
-        # Output
-        container: str = field(metadata=_desc("Output container/extension (e.g. 'webm', 'mp4')."))
+    #     # Output
+    #     container: str = field(metadata=_desc("Output container/extension (e.g. 'webm', 'mp4')."))
 
-        # Runner mode
-        mode: str = field(metadata=_desc("Execution mode: 'onepass', 'av1_2pass_size', or 'av1_2pass_bitrate'."))
+    #     # Runner mode
+    #     mode: str = field(metadata=_desc("Execution mode: 'onepass', 'av1_2pass_size', or 'av1_2pass_bitrate'."))
 
-        # Stream selection (-map)
-        map_v: str = field(default="0:v:0", metadata=_desc("Video stream selector for -map (default first video)."))
-        map_a: str = field(default="0:a:0?", metadata=_desc("Audio stream selector for -map (default first audio, optional)."))
+    #     # Stream selection (-map)
+    #     map_v: str = field(default="0:v:0", metadata=_desc("Video stream selector for -map (default first video)."))
+    #     map_a: str = field(default="0:a:0?", metadata=_desc("Audio stream selector for -map (default first audio, optional)."))
 
-        # Video options (ffmpeg-style)
-        c_v: str = field(default="libx264", metadata=_desc("Video encoder for -c:v (e.g. libx264, libsvtav1)."))
-        preset: Optional[str] = field(default=None, metadata=_desc("Encoder -preset (x264: 'slow'; SVT-AV1: number)."))
-        crf: Optional[int] = field(default=None, metadata=_desc("CRF quality target for -crf (lower=better, bigger)."))
-        b_v: Optional[str] = field(default=None, metadata=_desc("Video bitrate for -b:v (e.g. '2000k', '0')."))
-        maxrate: Optional[str] = field(default=None, metadata=_desc("VBV cap -maxrate (e.g. '2M')."))
-        bufsize: Optional[str] = field(default=None, metadata=_desc("VBV buffer -bufsize (e.g. '2M')."))
-        pix_fmt: str = field(default="yuv420p", metadata=_desc("Pixel format for -pix_fmt (e.g. yuv420p)."))
+    #     # Video options (ffmpeg-style)
+    #     c_v: str = field(default="libx264", metadata=_desc("Video encoder for -c:v (e.g. libx264, libsvtav1)."))
+    #     preset: Optional[str] = field(default=None, metadata=_desc("Encoder -preset (x264: 'slow'; SVT-AV1: number)."))
+    #     crf: Optional[int] = field(default=None, metadata=_desc("CRF quality target for -crf (lower=better, bigger)."))
+    #     b_v: Optional[str] = field(default=None, metadata=_desc("Video bitrate for -b:v (e.g. '2000k', '0')."))
+    #     maxrate: Optional[str] = field(default=None, metadata=_desc("VBV cap -maxrate (e.g. '2M')."))
+    #     bufsize: Optional[str] = field(default=None, metadata=_desc("VBV buffer -bufsize (e.g. '2M')."))
+    #     pix_fmt: str = field(default="yuv420p", metadata=_desc("Pixel format for -pix_fmt (e.g. yuv420p)."))
 
-        # Audio options (ffmpeg-style)
-        c_a: str = field(default="copy", metadata=_desc("Audio codec for -c:a ('copy' to passthrough)."))
-        b_a: Optional[str] = field(default=None, metadata=_desc("Audio bitrate for -b:a when encoding (e.g. '96k')."))
+    #     # Audio options (ffmpeg-style)
+    #     c_a: str = field(default="copy", metadata=_desc("Audio codec for -c:a ('copy' to passthrough)."))
+    #     b_a: Optional[str] = field(default=None, metadata=_desc("Audio bitrate for -b:a when encoding (e.g. '96k')."))
 
-        # Size targeting (only for av1_2pass_size)
-        target_mib: Optional[float] = field(
-            default=None,
-            metadata=_desc("Total target size in MiB (headroom). Used only in 'av1_2pass_size'."),
-        )
+    #     # Size targeting (only for av1_2pass_size)
+    #     target_mib: Optional[float] = field(
+    #         default=None,
+    #         metadata=_desc("Total target size in MiB (headroom). Used only in 'av1_2pass_size'."),
+    #     )
 
-        # Extra args escape hatches (strings are shlex-split)
-        extra_global: List[str] = field(
-            default_factory=list,
-            metadata=_desc("Extra args inserted after 'ffmpeg -y' (apply to whole command)."),
-        )
-        extra_input_pre: List[str] = field(
-            default_factory=list,
-            metadata=_desc("Extra args inserted BEFORE '-i <input>' (demuxer/input options)."),
-        )
-        extra_video: List[str] = field(
-            default_factory=list,
-            metadata=_desc("Extra args inserted after video options (apply to video stream)."),
-        )
-        extra_audio: List[str] = field(
-            default_factory=list,
-            metadata=_desc("Extra args inserted after audio options (apply to audio stream)."),
-        )
-        extra_output: List[str] = field(
-            default_factory=list,
-            metadata=_desc("Extra args inserted before output filename (container/mux/metadata flags)."),
-        )
+    #     # Extra args escape hatches (strings are shlex-split)
+    #     extra_global: List[str] = field(
+    #         default_factory=list,
+    #         metadata=_desc("Extra args inserted after 'ffmpeg -y' (apply to whole command)."),
+    #     )
+    #     extra_input_pre: List[str] = field(
+    #         default_factory=list,
+    #         metadata=_desc("Extra args inserted BEFORE '-i <input>' (demuxer/input options)."),
+    #     )
+    #     extra_video: List[str] = field(
+    #         default_factory=list,
+    #         metadata=_desc("Extra args inserted after video options (apply to video stream)."),
+    #     )
+    #     extra_audio: List[str] = field(
+    #         default_factory=list,
+    #         metadata=_desc("Extra args inserted after audio options (apply to audio stream)."),
+    #     )
+    #     extra_output: List[str] = field(
+    #         default_factory=list,
+    #         metadata=_desc("Extra args inserted before output filename (container/mux/metadata flags)."),
+    #     )
 
-    PRESETS: Dict[str, Preset] = {
-        "ffshare": Preset(
-            name="ffshare",
-            description="Default share compression (matches the one-liner).",
-            container="mp4",
-            mode="onepass",
-            c_v="libx264",
-            preset=None,
-            crf=23,
-            maxrate="2M",
-            bufsize="2M",
-            pix_fmt="yuv420p",
-            c_a="aac",
-            b_a=None,
-            extra_video=["-vf", "format=yuv420p"],
-        ),
-        "ffshare_video_only": Preset(
-            name="ffshare_video_only",
-            description="ffshare default but without audio.",
-            container="mp4",
-            mode="onepass",
-            map_v="0:v:0",
-            map_a="0:a:0?",
-            c_v="libx264",
-            preset="slow",
-            crf=23,
-            maxrate="2M",
-            bufsize="2M",
-            pix_fmt="yuv420p",
-            c_a="copy",
-            extra_global=["-an"],
-            extra_video=["-vf", "format=yuv420p"],
-        ),
-        "ffshare_mkv_video_only": Preset(
-            name="ffshare_video_only",
-            description="ffshare default but without audio.",
-            container="mp4",
-            mode="onepass",
-            map_v="0:v:0",
-            map_a="0:a:0?",
-            c_v="libx264",
-            preset="slow",
-            crf=23,
-            maxrate="2M",
-            bufsize="2M",
-            pix_fmt="yuv420p",
-            c_a="copy",
-            extra_global=["-an"],
-            extra_video=["-vf", "format=yuv420p"],
-        ),
-        "ffshare_audio_compressed": Preset(
-            name="ffshare_audio_compressed",
-            description="ffshare video settings + explicit AAC audio bitrate (smaller).",
-            container="mp4",
-            mode="onepass",
-            c_v="libx264",
-            preset=None,
-            crf=23,
-            maxrate="2M",
-            bufsize="2M",
-            pix_fmt="yuv420p",
-            c_a="aac",
-            b_a="128k",
-            extra_video=["-vf", "format=yuv420p"],
-        ),
-        "av1_15mb_audio": Preset(
-            name="av1_15mb_audio",
-            description=(
-                "Makes a smaller WebM video that stays under ~15 MB while keeping it looking and sounding decent. "
-                "faces are blurry, text is a still legible, but a little blurry"
-            ),
-            container="webm",
-            mode="av1_2pass_size",
-            c_v="libsvtav1",
-            preset="8",
-            pix_fmt="yuv420p",
-            c_a="libopus",
-            b_a="64k",
-            target_mib=14.7,
-        ),
-        "av1_2pass_1200k_opus64": Preset(
-            name="av1_2pass_1200k_opus64",
-            description=(
-                "Two-pass AV1 (SVT-AV1 preset 8) at fixed 1200k video + Opus 64k. "
-                "Middle ground: typically better than size-targeted ~15MB AV1, smaller than ffshare."
-            ),
-            container="webm",
-            mode="av1_2pass_bitrate",
-            map_v="0:v:0",
-            map_a="0:a:0?",
-            c_v="libsvtav1",
-            preset="8",
-            b_v="1200k",
-            pix_fmt="yuv420p",
-            c_a="libopus",
-            b_a="64k",
-        ),
-        "av1_crf28_opus128": Preset(
-            name="av1_crf28_opus128",
-            description="One-pass AV1 CRF encode with Opus 128k (general small+quality).",
-            container="webm",
-            mode="onepass",
-            c_v="libsvtav1",
-            preset="6",
-            crf=28,
-            b_v="0",
-            pix_fmt="yuv420p",
-            c_a="libopus",
-            b_a="128k",
-        ),
-        "crop_no_audio": Preset(
-            name="crop_no_audio",
-            description="Crop video using ROI and remove audio (-an). Keeps default video settings from your pipeline.",
-            container="mkv",
-            mode="onepass",
-            map_v="0:v:0",
-            map_a="0:a:0?",          # irrelevant when -an is present, but fine
-            c_v="libx264",
-            preset=None,
-            crf=None,
-            b_v=None,
-            maxrate=None,
-            bufsize=None,
-            pix_fmt="yuv420p",
-            c_a="copy",
-            b_a=None,
-            extra_global=["-an"],    # removes audio
-            extra_video=[],          # crop is injected by crop_video_with_preset(...)
-            extra_audio=[],
-            extra_output=[],
-        ),
-    }
+    # PRESETS: Dict[str, Preset] = {
+    #     "ffshare": Preset(
+    #         name="ffshare",
+    #         description="Default share compression (matches the one-liner).",
+    #         container="mp4",
+    #         mode="onepass",
+    #         c_v="libx264",
+    #         preset=None,
+    #         crf=23,
+    #         maxrate="2M",
+    #         bufsize="2M",
+    #         pix_fmt="yuv420p",
+    #         c_a="aac",
+    #         b_a=None,
+    #         extra_video=["-vf", "format=yuv420p"],
+    #     ),
+    #     "ffshare_video_only": Preset(
+    #         name="ffshare_video_only",
+    #         description="ffshare default but without audio.",
+    #         container="mp4",
+    #         mode="onepass",
+    #         map_v="0:v:0",
+    #         map_a="0:a:0?",
+    #         c_v="libx264",
+    #         preset="slow",
+    #         crf=23,
+    #         maxrate="2M",
+    #         bufsize="2M",
+    #         pix_fmt="yuv420p",
+    #         c_a="copy",
+    #         extra_global=["-an"],
+    #         extra_video=["-vf", "format=yuv420p"],
+    #     ),
+    #     "ffshare_mkv_video_only": Preset(
+    #         name="ffshare_video_only",
+    #         description="ffshare default but without audio.",
+    #         container="mp4",
+    #         mode="onepass",
+    #         map_v="0:v:0",
+    #         map_a="0:a:0?",
+    #         c_v="libx264",
+    #         preset="slow",
+    #         crf=23,
+    #         maxrate="2M",
+    #         bufsize="2M",
+    #         pix_fmt="yuv420p",
+    #         c_a="copy",
+    #         extra_global=["-an"],
+    #         extra_video=["-vf", "format=yuv420p"],
+    #     ),
+    #     "ffshare_audio_compressed": Preset(
+    #         name="ffshare_audio_compressed",
+    #         description="ffshare video settings + explicit AAC audio bitrate (smaller).",
+    #         container="mp4",
+    #         mode="onepass",
+    #         c_v="libx264",
+    #         preset=None,
+    #         crf=23,
+    #         maxrate="2M",
+    #         bufsize="2M",
+    #         pix_fmt="yuv420p",
+    #         c_a="aac",
+    #         b_a="128k",
+    #         extra_video=["-vf", "format=yuv420p"],
+    #     ),
+    #     "av1_15mb_audio": Preset(
+    #         name="av1_15mb_audio",
+    #         description=(
+    #             "Makes a smaller WebM video that stays under ~15 MB while keeping it looking and sounding decent. "
+    #             "faces are blurry, text is a still legible, but a little blurry"
+    #         ),
+    #         container="webm",
+    #         mode="av1_2pass_size",
+    #         c_v="libsvtav1",
+    #         preset="8",
+    #         pix_fmt="yuv420p",
+    #         c_a="libopus",
+    #         b_a="64k",
+    #         target_mib=14.7,
+    #     ),
+    #     "av1_2pass_1200k_opus64": Preset(
+    #         name="av1_2pass_1200k_opus64",
+    #         description=(
+    #             "Two-pass AV1 (SVT-AV1 preset 8) at fixed 1200k video + Opus 64k. "
+    #             "Middle ground: typically better than size-targeted ~15MB AV1, smaller than ffshare."
+    #         ),
+    #         container="webm",
+    #         mode="av1_2pass_bitrate",
+    #         map_v="0:v:0",
+    #         map_a="0:a:0?",
+    #         c_v="libsvtav1",
+    #         preset="8",
+    #         b_v="1200k",
+    #         pix_fmt="yuv420p",
+    #         c_a="libopus",
+    #         b_a="64k",
+    #     ),
+    #     "av1_crf28_opus128": Preset(
+    #         name="av1_crf28_opus128",
+    #         description="One-pass AV1 CRF encode with Opus 128k (general small+quality).",
+    #         container="webm",
+    #         mode="onepass",
+    #         c_v="libsvtav1",
+    #         preset="6",
+    #         crf=28,
+    #         b_v="0",
+    #         pix_fmt="yuv420p",
+    #         c_a="libopus",
+    #         b_a="128k",
+    #     ),
+    #     "crop_no_audio": Preset(
+    #         name="crop_no_audio",
+    #         description="Crop video using ROI and remove audio (-an). Keeps default video settings from your pipeline.",
+    #         container="mkv",
+    #         mode="onepass",
+    #         map_v="0:v:0",
+    #         map_a="0:a:0?",          # irrelevant when -an is present, but fine
+    #         c_v="libx264",
+    #         preset=None,
+    #         crf=None,
+    #         b_v=None,
+    #         maxrate=None,
+    #         bufsize=None,
+    #         pix_fmt="yuv420p",
+    #         c_a="copy",
+    #         b_a=None,
+    #         extra_global=["-an"],    # removes audio
+    #         extra_video=[],          # crop is injected by crop_video_with_preset(...)
+    #         extra_audio=[],
+    #         extra_output=[],
+    #     ),
+    # }
 
 
-    def crop_video_with_preset(
-        in_path: Path,
-        preset: Preset | None = None,   # NEW: optional
-        *,
-        x: int,
-        y: int,
-        w: int,
-        h: int,
-        out_dir: Path | None = None,
-        out_path: Path | None = None,
-        tag: str | None = None,
-        scale: int | None = None,
-        start: float | None = None,
-        duration: float | None = None,
-        align_to_even: bool = True,
-        overwrite: bool = True,
-        dry_run: bool = False,
-    ) -> tuple[Path, list[str]] | Path:
-        """
-        If preset is None: apply crop (+ optional scale/trim), keep audio copy, and use a safe default video encode.
-        If preset is provided: apply crop merged with preset filters and preset options (onepass only).
-        """
+    # def crop_video_with_preset(
+    #     in_path: Path,
+    #     preset: Preset | None = None,   # NEW: optional
+    #     *,
+    #     x: int,
+    #     y: int,
+    #     w: int,
+    #     h: int,
+    #     out_dir: Path | None = None,
+    #     out_path: Path | None = None,
+    #     tag: str | None = None,
+    #     scale: int | None = None,
+    #     start: float | None = None,
+    #     duration: float | None = None,
+    #     align_to_even: bool = True,
+    #     overwrite: bool = True,
+    #     dry_run: bool = False,
+    # ) -> tuple[Path, list[str]] | Path:
+    #     """
+    #     If preset is None: apply crop (+ optional scale/trim), keep audio copy, and use a safe default video encode.
+    #     If preset is provided: apply crop merged with preset filters and preset options (onepass only).
+    #     """
 
-        def _safe(s: str) -> str:
-            return "".join(ch if (ch.isalnum() or ch in ("-", "_", ".")) else "_" for ch in s)
+    #     def _safe(s: str) -> str:
+    #         return "".join(ch if (ch.isalnum() or ch in ("-", "_", ".")) else "_" for ch in s)
 
-        def _even(v: int) -> int:
-            v = int(v)
-            return v if v % 2 == 0 else max(2, v - 1)
+    #     def _even(v: int) -> int:
+    #         v = int(v)
+    #         return v if v % 2 == 0 else max(2, v - 1)
 
-        x = max(0, int(x))
-        y = max(0, int(y))
-        w = max(1, int(w))
-        h = max(1, int(h))
+    #     x = max(0, int(x))
+    #     y = max(0, int(y))
+    #     w = max(1, int(w))
+    #     h = max(1, int(h))
 
-        # Pick defaults when no preset is selected
-        default_container = (in_path.suffix.lstrip(".") or "mp4")
-        default_c_v = "libx264"
-        default_pix_fmt = "yuv420p"
+    #     # Pick defaults when no preset is selected
+    #     default_container = (in_path.suffix.lstrip(".") or "mp4")
+    #     default_c_v = "libx264"
+    #     default_pix_fmt = "yuv420p"
 
-        pix_fmt = (preset.pix_fmt if preset else default_pix_fmt) or default_pix_fmt
-        if align_to_even and pix_fmt.lower() == "yuv420p":
-            w = _even(w)
-            h = _even(h)
+    #     pix_fmt = (preset.pix_fmt if preset else default_pix_fmt) or default_pix_fmt
+    #     if align_to_even and pix_fmt.lower() == "yuv420p":
+    #         w = _even(w)
+    #         h = _even(h)
 
-        # --- Build filtergraph: crop (+ optional scale) + (preset vf if any)
-        def _vf_crop() -> str:
-            parts = [f"crop={w}:{h}:{x}:{y}"]
-            if scale and int(scale) > 1:
-                s = int(scale)
-                parts.append(f"scale=iw*{s}:ih*{s}")
-            return ",".join(parts)
+    #     # --- Build filtergraph: crop (+ optional scale) + (preset vf if any)
+    #     def _vf_crop() -> str:
+    #         parts = [f"crop={w}:{h}:{x}:{y}"]
+    #         if scale and int(scale) > 1:
+    #             s = int(scale)
+    #             parts.append(f"scale=iw*{s}:ih*{s}")
+    #         return ",".join(parts)
 
-        vf_parts = [_vf_crop()]
-        stripped_extra_video: list[str] = []
+    #     vf_parts = [_vf_crop()]
+    #     stripped_extra_video: list[str] = []
 
-        if preset:
-            if preset.mode != "onepass":
-                raise ValueError(f"crop_video_with_preset only implements mode='onepass' (got {preset.mode!r}).")
+    #     if preset:
+    #         if preset.mode != "onepass":
+    #             raise ValueError(f"crop_video_with_preset only implements mode='onepass' (got {preset.mode!r}).")
 
-            extra_video = list(preset.extra_video or [])
-            i = 0
-            while i < len(extra_video):
-                tok = extra_video[i]
-                if tok in ("-vf", "-filter:v"):
-                    if i + 1 >= len(extra_video):
-                        raise ValueError(f"{tok} present in preset.extra_video but missing filtergraph value")
-                    vf_parts.append(str(extra_video[i + 1]))
-                    i += 2
-                    continue
-                stripped_extra_video.append(tok)
-                i += 1
+    #         extra_video = list(preset.extra_video or [])
+    #         i = 0
+    #         while i < len(extra_video):
+    #             tok = extra_video[i]
+    #             if tok in ("-vf", "-filter:v"):
+    #                 if i + 1 >= len(extra_video):
+    #                     raise ValueError(f"{tok} present in preset.extra_video but missing filtergraph value")
+    #                 vf_parts.append(str(extra_video[i + 1]))
+    #                 i += 2
+    #                 continue
+    #             stripped_extra_video.append(tok)
+    #             i += 1
 
-        vf = ",".join([p for p in vf_parts if p])
+    #     vf = ",".join([p for p in vf_parts if p])
 
-        # --- Output dir + path (same folder as input, tagged)
-        def _default_tag() -> str:
-            parts = []
-            if preset:
-                parts.append(preset.name)
-            parts.append(f"crop_{x}x{y}_{w}x{h}")
-            if scale and int(scale) > 1:
-                parts.append(f"s{int(scale)}")
-            if start is not None:
-                parts.append(f"ss{float(start):.3f}")
-            if duration is not None:
-                parts.append(f"t{float(duration):.3f}")
-            return _safe("__".join(parts))
+    #     # --- Output dir + path (same folder as input, tagged)
+    #     def _default_tag() -> str:
+    #         parts = []
+    #         if preset:
+    #             parts.append(preset.name)
+    #         parts.append(f"crop_{x}x{y}_{w}x{h}")
+    #         if scale and int(scale) > 1:
+    #             parts.append(f"s{int(scale)}")
+    #         if start is not None:
+    #             parts.append(f"ss{float(start):.3f}")
+    #         if duration is not None:
+    #             parts.append(f"t{float(duration):.3f}")
+    #         return _safe("__".join(parts))
 
-        container = preset.container if preset else default_container
+    #     container = preset.container if preset else default_container
 
-        if out_path is None:
-            if out_dir is None:
-                tag_final = tag or _default_tag()
-                out_dir = in_path.parent / _safe(f"{in_path.stem}__{tag_final}")
-            out_dir.mkdir(parents=True, exist_ok=True)
-            out_path = out_dir / _safe(f"{in_path.stem}.{container}")
+    #     if out_path is None:
+    #         if out_dir is None:
+    #             tag_final = tag or _default_tag()
+    #             out_dir = in_path.parent / _safe(f"{in_path.stem}__{tag_final}")
+    #         out_dir.mkdir(parents=True, exist_ok=True)
+    #         out_path = out_dir / _safe(f"{in_path.stem}.{container}")
 
-        # --- Audio disabled?
-        extra_global = list(preset.extra_global or []) if preset else []
-        audio_disabled = any(a == "-an" for a in extra_global)
+    #     # --- Audio disabled?
+    #     extra_global = list(preset.extra_global or []) if preset else []
+    #     audio_disabled = any(a == "-an" for a in extra_global)
 
-        # --- Assemble ffmpeg command
-        cmd: list[str] = ["ffmpeg"]
-        if overwrite:
-            cmd += ["-y"]
-        cmd += extra_global
+    #     # --- Assemble ffmpeg command
+    #     cmd: list[str] = ["ffmpeg"]
+    #     if overwrite:
+    #         cmd += ["-y"]
+    #     cmd += extra_global
 
-        if start is not None:
-            cmd += ["-ss", f"{float(start):.6f}"]
-        if duration is not None:
-            cmd += ["-t", f"{float(duration):.6f}"]
+    #     if start is not None:
+    #         cmd += ["-ss", f"{float(start):.6f}"]
+    #     if duration is not None:
+    #         cmd += ["-t", f"{float(duration):.6f}"]
 
-        cmd += (list(preset.extra_input_pre or []) if preset else [])
-        cmd += ["-i", str(in_path)]
+    #     cmd += (list(preset.extra_input_pre or []) if preset else [])
+    #     cmd += ["-i", str(in_path)]
 
-        # Mapping
-        if preset:
-            cmd += ["-map", preset.map_v]
-            if not audio_disabled and preset.map_a:
-                cmd += ["-map", preset.map_a]
-        else:
-            cmd += ["-map", "0:v:0"]
-            if not audio_disabled:
-                cmd += ["-map", "0:a:0?"]
+    #     # Mapping
+    #     if preset:
+    #         cmd += ["-map", preset.map_v]
+    #         if not audio_disabled and preset.map_a:
+    #             cmd += ["-map", preset.map_a]
+    #     else:
+    #         cmd += ["-map", "0:v:0"]
+    #         if not audio_disabled:
+    #             cmd += ["-map", "0:a:0?"]
 
-        # Video options
-        if preset:
-            cmd += ["-c:v", preset.c_v]
-            if preset.preset:
-                cmd += ["-preset", str(preset.preset)]
-            if preset.crf is not None:
-                cmd += ["-crf", str(int(preset.crf))]
-            if preset.b_v:
-                cmd += ["-b:v", str(preset.b_v)]
-            if preset.maxrate:
-                cmd += ["-maxrate", str(preset.maxrate)]
-            if preset.bufsize:
-                cmd += ["-bufsize", str(preset.bufsize)]
-            cmd += ["-pix_fmt", str(preset.pix_fmt or pix_fmt)]
-        else:
-            # "crop only": no preset tuning; still must re-encode video to apply the crop filter
-            cmd += ["-c:v", default_c_v, "-pix_fmt", pix_fmt]
+    #     # Video options
+    #     if preset:
+    #         cmd += ["-c:v", preset.c_v]
+    #         if preset.preset:
+    #             cmd += ["-preset", str(preset.preset)]
+    #         if preset.crf is not None:
+    #             cmd += ["-crf", str(int(preset.crf))]
+    #         if preset.b_v:
+    #             cmd += ["-b:v", str(preset.b_v)]
+    #         if preset.maxrate:
+    #             cmd += ["-maxrate", str(preset.maxrate)]
+    #         if preset.bufsize:
+    #             cmd += ["-bufsize", str(preset.bufsize)]
+    #         cmd += ["-pix_fmt", str(preset.pix_fmt or pix_fmt)]
+    #     else:
+    #         # "crop only": no preset tuning; still must re-encode video to apply the crop filter
+    #         cmd += ["-c:v", default_c_v, "-pix_fmt", pix_fmt]
 
-        # Filters
-        if vf:
-            cmd += ["-vf", vf]
+    #     # Filters
+    #     if vf:
+    #         cmd += ["-vf", vf]
 
-        # Extra video args (minus any -vf we merged)
-        if preset:
-            cmd += stripped_extra_video
+    #     # Extra video args (minus any -vf we merged)
+    #     if preset:
+    #         cmd += stripped_extra_video
 
-        # Audio options
-        if not audio_disabled:
-            if preset:
-                cmd += ["-c:a", preset.c_a]
-                if preset.b_a and preset.c_a != "copy":
-                    cmd += ["-b:a", str(preset.b_a)]
-                cmd += list(preset.extra_audio or [])
-            else:
-                cmd += ["-c:a", "copy"]
+    #     # Audio options
+    #     if not audio_disabled:
+    #         if preset:
+    #             cmd += ["-c:a", preset.c_a]
+    #             if preset.b_a and preset.c_a != "copy":
+    #                 cmd += ["-b:a", str(preset.b_a)]
+    #             cmd += list(preset.extra_audio or [])
+    #         else:
+    #             cmd += ["-c:a", "copy"]
 
-        # Output extras + filename
-        if preset:
-            cmd += list(preset.extra_output or [])
-        cmd += [str(out_path)]
+    #     # Output extras + filename
+    #     if preset:
+    #         cmd += list(preset.extra_output or [])
+    #     cmd += [str(out_path)]
 
-        if dry_run:
-            return out_path, cmd
+    #     if dry_run:
+    #         return out_path, cmd
 
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        subprocess.run(cmd, check=True)
-        return out_path
-    return List, PRESETS, crop_video_with_preset
+    #     out_path.parent.mkdir(parents=True, exist_ok=True)
+    #     subprocess.run(cmd, check=True)
+    #     return out_path
+    return
 
 
 @app.cell
 def _(
-    PRESETS: "Dict[str, Preset]",
+    PRESETS,
     ai_invasion_1,
     crop_video_with_preset,
     get_h,
@@ -4183,9 +4499,9 @@ def _(Path, asdict, json):
             (out / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
 
         return kept
-
     return (
         Image,
+        Iterable,
         Optional,
         dataclass,
         np,
@@ -4208,7 +4524,6 @@ def _(ai_invasion_1_cropped, data_dir, reduce_chat_frames_by_scroll_color):
         bottom_change_thr=0.18,  # raise if it still keeps too often
         progress_every=500,
     )
-
     return (kept,)
 
 
@@ -4224,8 +4539,8 @@ def _(kept):
 
 
 @app.cell
-def _(ai_invasion_1_cropped, data_dir, reduce_chat_frames_by_scroll_color):
-    test_dir = data_dir / "chat_frames"
+def _(ai_invasion_1_cropped, reduce_chat_frames_by_scroll_color, video_dir):
+    test_dir = video_dir / "Doug_and_Twitch_Chat_TAKE_OVER_EUROPE-VpmmuHlLPM0__crop_no_audio__crop_0x14_350x460__s2" / "chat_frames"
     full_frames = reduce_chat_frames_by_scroll_color(
         ai_invasion_1_cropped,
         test_dir,
@@ -4237,7 +4552,6 @@ def _(ai_invasion_1_cropped, data_dir, reduce_chat_frames_by_scroll_color):
         write_report_json=True,
         progress_every=5000,
     )
-
     return full_frames, test_dir
 
 
