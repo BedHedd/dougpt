@@ -17,6 +17,13 @@ git worktree add 02-worktrees/branch-name branch-name
 git worktree add 02-worktrees/new-feature -b new-feature
 ```
 
+### Create a new branch based on an existing worktree
+```bash
+# Creates a new worktree with a new branch forked from an existing branch
+# git worktree add 02-worktrees/<worktree-dir> -b <new-branch-name> <source-branch>
+git worktree add 02-worktrees/experiments-petri-dish -b experiments-petri-dish experiments
+```
+
 ### List all worktrees
 ```bash
 git worktree list
