@@ -1,0 +1,15 @@
+{
+  "mode": "yolo",
+  "depth": "standard",
+  "parallelization": true,
+  "commit_docs": true,
+  "model_profile": "codex",
+  "models": {
+    "note": "GitHub Copilot Codex models"
+  },
+  "workflow": {
+    "research": "ask",
+    "plan_check": "ask",
+    "verifier": "ask"
+  }
+}
