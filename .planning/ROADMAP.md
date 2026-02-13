@@ -26,10 +26,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. `README.md` exists on the `00-experiments` branch with `$placeholder` variables (e.g., `$project_name`, `$description`)
   2. Template includes all required sections: project name, description, what it does, how to run, status
   3. Template contains a sentinel comment (e.g., `<!-- TEMPLATE: REPLACE ME -->`) that downstream tooling can detect to distinguish template vs populated README
-**Plans**: TBD
+**Plans:** 1 plan
 
 Plans:
-- [ ] 01-01: TBD
+- [ ] 01-01-PLAN.md — Create README template with $placeholder variables on 00-experiments
 
 ### Phase 2: Branch Creation Flow
 **Goal**: A user can create a new experiment/feature project in one invocation and get a fully configured, ready-to-code worktree
@@ -67,6 +67,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Template Preparation | 0/TBD | Not started | - |
+| 1. Template Preparation | 0/1 | Not started | - |
 | 2. Branch Creation Flow | 0/TBD | Not started | - |
 | 3. Root README Index | 0/TBD | Not started | - |
