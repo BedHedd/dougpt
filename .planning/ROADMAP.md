@@ -12,7 +12,7 @@ Automate the creation of self-documenting experiment/feature branches from `00-e
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Template Preparation** - README template with placeholder variables on `00-experiments`
+- [x] **Phase 1: Template Preparation** - README template with placeholder variables on `00-experiments`
 - [ ] **Phase 2: Branch Creation Flow** - Complete new-project workflow from branch creation through ready-to-code state
 - [ ] **Phase 3: Root README Index** - Master branch README updated to list active experiments
 
@@ -29,7 +29,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 1 plan
 
 Plans:
-- [ ] 01-01-PLAN.md — Create README template with $placeholder variables on 00-experiments
+- [x] 01-01-PLAN.md — Create README template with $placeholder variables on 00-experiments
 
 ### Phase 2: Branch Creation Flow
 **Goal**: A user can create a new experiment/feature project in one invocation and get a fully configured, ready-to-code worktree
@@ -67,6 +67,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Template Preparation | 0/1 | Not started | - |
+| 1. Template Preparation | 1/1 | Complete | 2026-02-13 |
 | 2. Branch Creation Flow | 0/TBD | Not started | - |
 | 3. Root README Index | 0/TBD | Not started | - |
