@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-13)
 
 **Core value:** Every experiment/feature branch is self-documenting from creation — branching, worktree setup, README population, and project naming happen automatically so you can start building immediately.
-**Current focus:** Phase 3 - Root README Index
+**Current focus:** All v1 phases complete
 
 ## Current Position
 
-Phase: 2 of 3 (Branch Creation Flow) — COMPLETE
+Phase: 3 of 3 (Root README Index) — COMPLETE
 Plan: 1 of 1 in current phase
-Status: Phase complete, ready for Phase 3
-Last activity: 2026-02-13 — Executed Phase 2 directly (test-gsd-flow created + verified)
+Status: All phases complete. v1 requirements fully delivered.
+Last activity: 2026-02-13 — Executed Phase 3 directly (root README updated on master)
 
-Progress: [██████░░░░] 66%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 1 min
-- Total execution time: 0.04 hours
+- Total plans completed: 3
+- Average duration: 1.3 min
+- Total execution time: 0.07 hours
 
 **By Phase:**
 
@@ -29,9 +29,10 @@ Progress: [██████░░░░] 66%
 |-------|-------|-------|----------|
 | 1. Template Preparation | 1/1 | 1 min | 1 min |
 | 2. Branch Creation Flow | 1/1 | 2 min | 2 min |
+| 3. Root README Index | 1/1 | 1 min | 1 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (1 min), 02-01 (2 min)
+- Last 5 plans: 01-01 (1 min), 02-01 (2 min), 03-01 (1 min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -48,17 +49,18 @@ Recent decisions affecting current work:
 - [01-01]: Bare $variable syntax chosen over ${variable} for cleaner markdown and no shell confusion
 - [01-01]: Sentinel comment placed on first line for trivial detection and clean removal
 - [02-01]: Phase 2 executed directly (no formal plan file) per user instruction — all 5 success criteria verified
+- [03-01]: Phase 3 executed via Option A (stash → checkout master → edit → commit → checkout back → pop stash) — both success criteria verified
 
 ### Pending Todos
 
-None yet.
+None. All v1 requirements delivered.
 
 ### Blockers/Concerns
 
-- Phase 3 (Root README Index) requires cross-branch editing (feature branch → master). Strategy needs validation during Phase 3 planning. Research ARCHITECTURE.md has Option A/B/C proposals.
+None. Cross-branch editing (Phase 3 concern) resolved via stash/checkout pattern.
 
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed Phase 2 (Branch Creation Flow) — test-gsd-flow created and verified
+Stopped at: All v1 phases complete. Project template workflow fully operational.
 Resume file: None

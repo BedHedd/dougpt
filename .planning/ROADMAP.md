@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Template Preparation** - README template with placeholder variables on `00-experiments`
 - [x] **Phase 2: Branch Creation Flow** - Complete new-project workflow from branch creation through ready-to-code state
-- [ ] **Phase 3: Root README Index** - Master branch README updated to list active experiments
+- [x] **Phase 3: Root README Index** - Master branch README updated to list active experiments
 
 ## Phase Details
 
@@ -53,10 +53,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. After creating a new project, the root `README.md` on the main branch includes an entry for the new branch (name, description, worktree path)
   2. The root README update does not corrupt or lose existing entries
-**Plans**: TBD
+**Plans**: 1 plan (executed directly, no formal plan file)
 
 Plans:
-- [ ] 03-01: TBD
+- [x] 03-01: Update root README on master with Active Experiments table (direct execution)
 
 ## Progress
 
@@ -67,4 +67,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Template Preparation | 1/1 | Complete | 2026-02-13 |
 | 2. Branch Creation Flow | 1/1 | Complete | 2026-02-13 |
-| 3. Root README Index | 0/TBD | Not started | - |
+| 3. Root README Index | 1/1 | Complete | 2026-02-13 |
