@@ -13,7 +13,7 @@ Automate the creation of self-documenting experiment/feature branches from `00-e
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Template Preparation** - README template with placeholder variables on `00-experiments`
-- [ ] **Phase 2: Branch Creation Flow** - Complete new-project workflow from branch creation through ready-to-code state
+- [x] **Phase 2: Branch Creation Flow** - Complete new-project workflow from branch creation through ready-to-code state
 - [ ] **Phase 3: Root README Index** - Master branch README updated to list active experiments
 
 ## Phase Details
@@ -41,12 +41,10 @@ Plans:
   3. The branch's `pyproject.toml` has the correct project `name` and `description` fields (not the template defaults)
   4. `uv sync` has run and a working `.venv` exists in the worktree — imports work immediately
   5. Pre-flight checks prevent duplicate branch or worktree creation with a clear error message
-**Plans**: TBD
+**Plans**: 1 plan (executed directly, no formal plan file)
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
-- [ ] 02-03: TBD
+- [x] 02-01: Execute branch creation flow end-to-end (direct execution)
 
 ### Phase 3: Root README Index
 **Goal**: The master branch README reflects which experiments/features are actively in development
@@ -68,5 +66,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Template Preparation | 1/1 | Complete | 2026-02-13 |
-| 2. Branch Creation Flow | 0/TBD | Not started | - |
+| 2. Branch Creation Flow | 1/1 | Complete | 2026-02-13 |
 | 3. Root README Index | 0/TBD | Not started | - |
