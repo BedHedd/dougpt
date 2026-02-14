@@ -5,7 +5,7 @@
   "commit_docs": true,
   "model_profile": "codex",
   "models": {
-    "note": "GitHub Copilot Codex models"
+    "note": "ChatGPT Codex / GitHub Copilot"
   },
   "workflow": {
     "research": "ask",

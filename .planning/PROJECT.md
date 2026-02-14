@@ -30,7 +30,7 @@ Every experiment/feature branch is self-documenting from creation — branching,
 
 ### Out of Scope
 
-- `03-app/` folder — redundant with worktree-based workflow, may be removed
+- `03-app/` folder — removed; redundant with worktree-based workflow
 - CI/CD pipelines — not needed for a personal template repo
 - Publishing/packaging — experiments are local, not distributed
 
@@ -38,6 +38,7 @@ Every experiment/feature branch is self-documenting from creation — branching,
 
 - The `00-experiments` branch is a standalone Python project tree (pyproject.toml, uv.lock, .python-version, sandbox.ipynb) — completely separate from the master branch structure
 - `00-experiments` branch already references a README in pyproject.toml but none exists yet
+- `03-app/` has been removed — app code lives on feature/experiment branches, not the template
 - Current branches: `master`, `vibe-coding`, `worktrees`, `00-experiments`
 - The `02-worktrees/` directory contents are gitignored except for its README
 - Git submodule `01-dev-onboarding` points to `https://github.com/progressEdd/dev-onboarding.git`
@@ -52,6 +53,7 @@ Every experiment/feature branch is self-documenting from creation — branching,
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
+| Removed `03-app/` | Redundant with worktree-based workflow — app code lives on branches | ✓ Good |
 | Branch from `00-experiments` not `master` | `00-experiments` has Python/uv setup ready to go; `master` has the template structure | — Pending |
 | Keep `02-worktrees/` naming | Consistent with existing numbered directory convention | — Pending |
 | Branch README replaces root README per-branch | Each branch should be self-contained and self-documenting | — Pending |
