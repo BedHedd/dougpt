@@ -28,7 +28,7 @@ The system has **5 distinct components** that operate across two git branch fami
 **Responsibility:** Provides the inheritable Python development environment that all new project branches start from.
 
 **What it owns:**
-- `pyproject.toml` — project metadata + dependencies (currently: `name = "template-repo"`, Python >=3.13, ipykernel, openai, python-dotenv)
+- `pyproject.toml` — project metadata + dependencies (currently: `name = "dougpt"`, Python >=3.13, ipykernel, openai, python-dotenv)
 - `uv.lock` — locked dependency resolution
 - `.python-version` — pins Python 3.13
 - `sandbox.ipynb` — starter notebook
@@ -99,7 +99,7 @@ User triggers "new project" via GSD
 ┌─────────────────────────────────────────┐
 │ 3. Create README.md on branch           │  ← GSD populates with project name,
 │    (in 02-worktrees/<name>/)            │     description, goals, constraints
-│ 4. Update pyproject.toml name field     │  ← "template-repo" → "<project-name>"
+│ 4. Update pyproject.toml name field     │  ← "dougpt" → "<project-name>"
 │ 5. Commit on the new branch             │
 └───────────┬─────────────────────────────┘
             │
@@ -115,7 +115,7 @@ User triggers "new project" via GSD
 
 ```
 00-experiments branch (base)
-├── pyproject.toml  ──── name: "template-repo"
+├── pyproject.toml  ──── name: "dougpt"
 ├── .python-version ──── 3.13
 ├── uv.lock         ──── locked deps
 ├── sandbox.ipynb   ──── starter notebook
@@ -215,7 +215,7 @@ This single command: creates the branch from `00-experiments`, creates the workt
 
 **Operations (all in `02-worktrees/<branch-name>/`):**
 1. Edit `README.md` — replace placeholders with project-specific content
-2. Edit `pyproject.toml` — change `name = "template-repo"` to `name = "<project-name>"`
+2. Edit `pyproject.toml` — change `name = "dougpt"` to `name = "<project-name>"`
 3. Optionally update `description` field in `pyproject.toml`
 4. `git add . && git commit` on the new branch
 

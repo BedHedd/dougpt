@@ -34,7 +34,7 @@ The primary risks are operational, not technical: (1) the git worktree + submodu
 - **T1+T2: Atomic branch + worktree creation** — single `git worktree add -b` command from `00-experiments`
 - **T3: README template on `00-experiments`** — `$placeholder` syntax with sentinel comment for idempotency
 - **T4: README population** — `string.Template.safe_substitute()` with project name, description, branch, date
-- **T5: pyproject.toml name update** — `re.sub()` to replace `"template-repo"` with project name
+- **T5: pyproject.toml name update** — `re.sub()` to replace `"dougpt"` with project name
 
 **Should have (promoted differentiators):**
 - **D3: Duplicate branch/worktree detection** — pre-flight `git worktree list --porcelain` check. Prevents confusing git fatal errors.
@@ -72,7 +72,7 @@ Five components span two branch families: the Template Skeleton (master), the Ba
 
 4. **Missing `uv sync` after worktree creation** — worktrees have `pyproject.toml` but no `.venv`. Everything looks ready but imports fail. Confirmed in live repo: the `00-experiments` worktree has no `.venv`.
 
-5. **Template clobber on re-run** — file writes are destructive. Use sentinel markers in README (`<!-- TEMPLATE: REPLACE ME -->`) and check for default `name = "template-repo"` before overwriting pyproject.toml.
+5. **Template clobber on re-run** — file writes are destructive. Use sentinel markers in README (`<!-- TEMPLATE: REPLACE ME -->`) and check for default `name = "dougpt"` before overwriting pyproject.toml.
 
 ## Implications for Roadmap
 

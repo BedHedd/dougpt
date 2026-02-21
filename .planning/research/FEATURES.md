@@ -14,7 +14,7 @@ Features the workflow requires. Missing = the workflow breaks or produces incons
 | T2 | Worktree creation in `02-worktrees/` | Worktrees provide parallel development without branch switching. The `02-worktrees/` directory is already gitignored (except README). Without this, users would need to `git checkout` between projects, losing open files and IDE state. | **Low** | T1 (branch must exist or be created atomically) | Path basename must match branch name exactly to avoid the admin-dir naming mismatch pitfall (see PITFALLS.md). |
 | T3 | README template on `00-experiments` branch | New branches inherit all files from `00-experiments`. If no template README exists, GSD must create one from scratch every time — no consistent structure, no placeholders to fill. The `pyproject.toml` already references `readme = "README.md"` but the file doesn't exist yet. | **Low** | None — can be created independently | Use `$placeholder` syntax (`string.Template`) for variables: `$project_name`, `$description`, `$branch_name`, `$created_date`. Include a sentinel comment (`<!-- TEMPLATE: REPLACE ME -->`) for idempotency detection. |
 | T4 | README population with project context on new branches | Each branch must be self-contained and self-documenting (per PROJECT.md constraint). An unpopulated template README with `$placeholders` is worse than no README — it signals an incomplete setup. | **Medium** | T2 (worktree must exist so files are editable), T3 (template must exist to be populated) | GSD substitutes placeholders via `string.Template.safe_substitute()`. Must check for sentinel before overwriting to prevent clobbering user edits on re-run. |
-| T5 | `pyproject.toml` name update on new branches | The base `pyproject.toml` has `name = "template-repo"`. Every branch inheriting this will have the wrong project name, which affects `uv` environment naming, import paths, and project identity. | **Low** | T2 (worktree must exist so the file is editable) | Single regex replacement: `re.sub(r'^(name\s*=\s*)"[^"]*"', ...)`. Check that current name is still `"template-repo"` before replacing — idempotency guard against clobbering a previously renamed project. |
+| T5 | `pyproject.toml` name update on new branches | The base `pyproject.toml` has `name = "dougpt"`. Every branch inheriting this will have the wrong project name, which affects `uv` environment naming, import paths, and project identity. | **Low** | T2 (worktree must exist so the file is editable) | Single regex replacement: `re.sub(r'^(name\s*=\s*)"[^"]*"', ...)`. Check that current name is still `"dougpt"` before replacing — idempotency guard against clobbering a previously renamed project. |
 
 ### Table Stakes — Implementation Order
 
@@ -151,7 +151,7 @@ If any of these conditions change (e.g., the template is shared with a team), re
 
 3. **T4: README population** — `string.Template.safe_substitute()` with project context (name, description, branch, date).
 
-4. **T5: pyproject.toml rename** — `re.sub()` to change `name = "template-repo"` to the project name.
+4. **T5: pyproject.toml rename** — `re.sub()` to change `name = "dougpt"` to the project name.
 
 5. **D3: Duplicate detection** (promoted from differentiator) — Pre-flight check via `git worktree list --porcelain`. Prevents confusing git errors.
 

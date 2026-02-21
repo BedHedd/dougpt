@@ -263,7 +263,7 @@ The admin dir was named `experiments` because the worktree was originally create
 **Prevention:**
 - Automation should check if files already have custom content before overwriting
 - Use a sentinel marker (e.g., `<!-- TEMPLATE: REPLACE ME -->`) in the template README — automation only replaces if the sentinel is present
-- For `pyproject.toml`: check if `name` is still the default `"template-repo"` before updating
+- For `pyproject.toml`: check if `name` is still the default `"dougpt"` before updating
 - Always create a fresh branch + worktree before templating; never template an existing branch
 
 **Phase to address:** Phase 2 (file templating) — implement idempotency checks.
