@@ -1,7 +1,7 @@
 [project]
-name = "template-repo"
+name = "dougpt"
 version = "0.1.0"
-description = "Add your description here"
+description = "make a ai trained off of dougdoug's twitch chat"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
