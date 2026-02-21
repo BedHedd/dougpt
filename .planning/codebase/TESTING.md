@@ -1,96 +1,121 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-02-13
+**Analysis Date:** 2026-02-21
 
 ## Test Framework
 
 **Runner:**
-- None configured
-- No test framework installed or configured
-- No `pytest.ini`, `pyproject.toml`, `setup.cfg`, `tox.ini`, or `conftest.py` detected
+- Not detected for automated code tests in current codebase.
+- Config: Not detected (`pytest.ini`, `tox.ini`, `jest.config.*`, `vitest.config.*` are absent in `/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/dougpt`).
 
 **Assertion Library:**
-- None
+- Built-in Python `assert` is used in documented one-liner checks inside planning/UAT docs (`.planning/phases/01-template-preparation/01-01-PLAN.md`).
 
 **Run Commands:**
 ```bash
-# No test commands configured
-# .gitignore includes entries for pytest (.pytest_cache/), tox (.tox/), nox (.nox/),
-# coverage (.coverage, htmlcov/, coverage.xml), and hypothesis (.hypothesis/),
-# suggesting pytest is the intended test framework
+# Automated unit/integration suite
+Not applicable (no test runner configured)
+
+# Manual template substitution verification
+python3 -c "from string import Template; t = Template(open('02-worktrees/00-experiments/README.md').read()); r = t.safe_substitute(project_name='Test', description='A test project', branch_name='test-branch', created_date='2026-01-01'); assert '$project_name' not in r"
+
+# Manual UAT evidence location
+Read .planning/phases/01-template-preparation/01-UAT.md
 ```
 
 ## Test File Organization
 
 **Location:**
-- No test files exist
+- No `*.test.*`, `*.spec.*`, `test_*.py`, or `*_test.py` files are detected in `/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/dougpt`.
+- Manual acceptance tests are documented in `.planning/phases/01-template-preparation/01-UAT.md`.
 
 **Naming:**
-- Not yet established
+- UAT files follow phase naming pattern `{phase-id}-UAT.md` and `{phase-id}-{plan-id}-PLAN.md` (for example `.planning/phases/01-template-preparation/01-UAT.md`).
 
 **Structure:**
-- Not yet established
-
-## Recommended Setup
-
-Based on `.gitignore` entries referencing pytest, coverage, hypothesis, tox, and nox, the intended testing stack is:
-
-```bash
-# Install pytest (recommended based on gitignore patterns)
-pip install pytest pytest-cov
-
-# Run tests (on experiment branches — no app code on template branches)
-pytest tests/
-
-# Run with coverage
-pytest --cov --cov-report=html tests/
+```
+.planning/phases/<phase-name>/
+  <phase>-<plan>-PLAN.md
+  <phase>-<plan>-SUMMARY.md
+  <phase>-UAT.md
 ```
 
 ## Test Structure
 
 **Suite Organization:**
-- Not yet established
+```typescript
+### 1. <Behavior being validated>
+expected: <deterministic command and expected output>
+result: pass|fail
+```
+
+**Patterns:**
+- Setup pattern: define explicit shell/python command and expected observable output in plan docs (`.planning/phases/01-template-preparation/01-01-PLAN.md`).
+- Teardown pattern: verify clean git status (`git -C 02-worktrees/00-experiments status --porcelain`) documented in `.planning/phases/01-template-preparation/01-01-PLAN.md`.
+- Assertion pattern: use direct `assert` checks in Python one-liners and mark `result: pass` in UAT (`.planning/phases/01-template-preparation/01-UAT.md`).
 
 ## Mocking
 
-**Framework:** Not configured
+**Framework:** Not used
 
 **Patterns:**
-- Not yet established
+```typescript
+Not applicable: no unittest/pytest mocking fixtures or mock libraries detected.
+```
+
+**What to Mock:**
+- No established code-test mock boundary exists yet; current checks validate generated template output directly (`.planning/phases/01-template-preparation/01-01-PLAN.md`).
+
+**What NOT to Mock:**
+- Do not mock template substitution behavior when validating `string.Template.safe_substitute()`; run it directly against `02-worktrees/00-experiments/README.md` as shown in `.planning/phases/01-template-preparation/01-01-PLAN.md`.
 
 ## Fixtures and Factories
 
 **Test Data:**
-- `00-supporting-files/data/` directory exists and could house test fixtures
-- No test data files present
+```typescript
+project_name='Test Project'
+description='A test'
+branch_name='test-branch'
+created_date='2026-01-01'
+```
 
 **Location:**
-- Not yet established
+- Inline in test command snippets within `.planning/phases/01-template-preparation/01-01-PLAN.md`.
 
 ## Coverage
 
-**Requirements:** None enforced
-**Tools referenced in `.gitignore`:** `.coverage`, `htmlcov/`, `coverage.xml`, `*.cover`, `*.py,cover`
+**Requirements:**
+- None enforced: no coverage tool config (`coverage.py`, `pytest-cov`, nyc, lcov) is detected in `/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/dougpt`.
+
+**View Coverage:**
+```bash
+Not applicable (no coverage pipeline configured)
+```
 
 ## Test Types
 
 **Unit Tests:**
-- None exist
+- Not used in executable source directories (`02-worktrees/chat-extraction/`, `02-worktrees/old-master/03-app/`).
 
 **Integration Tests:**
-- None exist
+- Manual integration checks are documented as command-based acceptance criteria in `.planning/phases/01-template-preparation/01-01-PLAN.md` and reported in `.planning/phases/01-template-preparation/01-UAT.md`.
 
 **E2E Tests:**
-- None exist
+- Not used.
 
-## Where to Add Tests
+## Common Patterns
 
-**When creating tests, follow this pattern (on experiment branches):**
-1. Create a `tests/` directory at the branch root
-2. Name test files `test_<module>.py` (pytest convention)
-3. Use `conftest.py` for shared fixtures
-4. Place test data in `tests/fixtures/` or `00-supporting-files/data/`
+**Async Testing:**
+```typescript
+Not detected: no async test framework usage.
+```
+
+**Error Testing:**
+```typescript
+# Pattern documented in plan: assertions fail with explicit messages
+assert data['project']['readme'] == 'README.md', 'readme field mismatch'
+```
 
 ---
 
-*Testing analysis: 2026-02-13*
+*Testing analysis: 2026-02-21*

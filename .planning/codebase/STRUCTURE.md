@@ -1,129 +1,110 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-02-13
+**Analysis Date:** 2026-02-21
 
 ## Directory Layout
 
-```
-project-template/
-├── .foam/                    # VS Code Foam knowledge management
-│   └── templates/            # Note templates
-│       ├── daily-note.md     # Daily log template
-│       └── new-template.md   # Generic note template
-├── 00-dev-log/               # Developer progress logs
-│   └── 00-template.md        # Dev log entry template
-├── 00-supporting-files/      # Reference data and configs
-│   └── data/                 # Data files
-│       └── sample.env.file   # Environment variable template
-├── 01-dev-onboarding/        # Git submodule: onboarding materials
-├── 02-worktrees/             # Git worktrees (gitignored contents)
-│   └── README.md             # Worktree usage instructions
-├── .gitignore                # Python-oriented gitignore
-├── .gitmodules               # Git submodule definitions
-└── README.md                 # Project setup instructions
+```text
+[project-root]/
+├── .planning/                    # Planning, roadmap, phase docs, and generated codebase maps
+├── 00-dev-log/                   # Date-based engineering notes and debugging logs
+├── 00-supporting-files/          # Shared data/images/artifacts used by experiments
+├── 01-dev-onboarding/            # Git submodule mount point (currently empty here)
+├── 02-worktrees/                 # Git worktree directories for branch-isolated experiments
+├── .foam/                        # Foam note templates
+├── .gitmodules                   # Submodule declaration for `01-dev-onboarding/`
+├── .gitignore                    # Root ignore policy (includes worktree content ignore)
+└── README.md                     # Root repository orientation and setup
 ```
 
 ## Directory Purposes
 
-**`.foam/templates/`:**
-- Purpose: Foam (VS Code extension) note templates
-- Contains: Markdown templates with VS Code snippet variables
-- Key files: `daily-note.md`, `new-template.md`
+**`.planning/`:**
+- Purpose: Keep project state, requirements, roadmap, research, and machine-generated architecture docs.
+- Contains: `PROJECT.md`, `REQUIREMENTS.md`, `ROADMAP.md`, `STATE.md`, `.planning/phases/`, `.planning/research/`, `.planning/codebase/`.
+- Key files: `.planning/PROJECT.md`, `.planning/REQUIREMENTS.md`, `.planning/ROADMAP.md`, `.planning/STATE.md`.
 
 **`00-dev-log/`:**
-- Purpose: Daily development logs and progress tracking
-- Contains: Markdown log entries
-- Key files: `00-template.md` (template for new entries)
+- Purpose: Track chronological work notes and experiments.
+- Contains: Daily markdown files named by date and a template.
+- Key files: `00-dev-log/00-template.md`, `00-dev-log/2026-02-09.md`.
 
 **`00-supporting-files/`:**
-- Purpose: Supporting data, configuration templates, reference materials
-- Contains: Data files and sample configs
-- Key files: `data/sample.env.file`
-
-**`01-dev-onboarding/`:**
-- Purpose: Developer onboarding resources (git submodule)
-- Contains: Submodule from `https://github.com/progressEdd/dev-onboarding.git`
-- Key files: Submodule contents (must be initialized with `git submodule update --init`)
+- Purpose: Hold shared inputs/outputs for extraction experiments.
+- Contains: `data/` frame caches/reports/jsonl outputs and `images/` dated image snapshots.
+- Key files: `00-supporting-files/data/extractions/extractions.jsonl`, `00-supporting-files/data/full_chat_frames_report.json`, `00-supporting-files/data/sample.env.file`.
 
 **`02-worktrees/`:**
-- Purpose: Directory for git worktree checkouts
-- Contains: Worktree directories (all gitignored except `README.md`)
-- Key files: `README.md` (usage instructions)
+- Purpose: Store per-branch worktrees as independent project roots.
+- Contains: Experiment worktrees (`00-experiments/`, `chat-extraction/`) and historical branch snapshot (`old-master/`).
+- Key files: `02-worktrees/README.md`, `02-worktrees/chat-extraction/pyproject.toml`, `02-worktrees/chat-extraction/chat-extraction.py`.
+
+**`01-dev-onboarding/`:**
+- Purpose: Reserved path for the `01-dev-onboarding` git submodule declared in `.gitmodules`.
+- Contains: Not detected in this checkout (empty directory state).
+- Key files: `.gitmodules` (source of truth for this mapping).
 
 ## Key File Locations
 
 **Entry Points:**
-- Application code lives on feature/experiment branches (branched from `00-experiments`)
+- `README.md`: Root clone/setup guidance and high-level project framing.
+- `02-worktrees/README.md`: Operational entry for worktree lifecycle commands.
+- `02-worktrees/chat-extraction/chat-extraction.py`: Marimo app entry for extraction experiments.
+- `02-worktrees/chat-extraction/chat-extraction-script.ipynb`: Notebook entry for iterative/batch extraction experiments.
 
 **Configuration:**
-- `.gitmodules`: Git submodule definitions
-- `.gitignore`: Comprehensive Python gitignore
-- `00-supporting-files/data/sample.env.file`: Environment variable template
+- `.gitignore`: Repository-wide ignore rules and worktree-ignore behavior.
+- `.gitmodules`: Submodule definition for `01-dev-onboarding`.
+- `.planning/config.json`: Planning system configuration.
+- `02-worktrees/chat-extraction/pyproject.toml`: Active experiment dependency/runtime metadata.
+- `02-worktrees/00-experiments/pyproject.toml`: Base branch dependency/runtime metadata.
 
-**Documentation:**
-- `README.md`: Project overview and setup instructions
-- `02-worktrees/README.md`: Git worktree usage guide
+**Core Logic:**
+- `02-worktrees/chat-extraction/chat-extraction.py`: Interactive extraction cells, model calls, and prompt experiments.
+- `02-worktrees/chat-extraction/chat-extraction-script.ipynb`: Helper functions, schema validation, and extraction pipeline experiments.
 
-**Templates:**
-- `.foam/templates/daily-note.md`: Foam daily note template
-- `.foam/templates/new-template.md`: Foam generic note template
-- `00-dev-log/00-template.md`: Dev log entry template
+**Testing:**
+- Not detected (no `tests/` directory or test configuration files in this checkout).
 
 ## Naming Conventions
 
 **Files:**
-- Lowercase with hyphens: `daily-note.md`, `new-template.md`, `sample.env.file`
-- Numeric prefix for ordering within directories: `00-template.md`
+- Use markdown planning/log files in uppercase or date-oriented names (examples: `.planning/PROJECT.md`, `00-dev-log/2026-02-09.md`).
+- Use hyphenated names for experiment scripts/notebooks (examples: `02-worktrees/chat-extraction/chat-extraction.py`, `02-worktrees/chat-extraction/chat-extraction-script.ipynb`).
 
 **Directories:**
-- Numeric prefix + hyphenated name: `00-dev-log/`, `01-dev-onboarding/`, `02-worktrees/`
-- Two-digit prefix establishes order: `00` = meta/support, `01` = onboarding, `02` = development
-- Hidden directories for tooling: `.foam/`
+- Use numbered prefixes for top-level organizational buckets (examples: `00-dev-log/`, `00-supporting-files/`, `01-dev-onboarding/`, `02-worktrees/`).
+- Use branch-like names for worktree subdirectories (examples: `02-worktrees/00-experiments/`, `02-worktrees/chat-extraction/`).
 
 ## Where to Add New Code
 
-**New Application/Experiment:**
-- Branch from `00-experiments` and create a worktree in `02-worktrees/`
-- App code lives on the branch, not in the template repo
+**New Feature:**
+- Primary code: Create a new worktree directory under `02-worktrees/<new-branch>/` and place implementation files there.
+- Tests: Add tests inside that worktree root (for example `02-worktrees/<new-branch>/tests/`) because no shared root test harness exists.
 
-**New Supporting Data/Config:**
-- Data files: `00-supporting-files/data/`
-- Environment templates: `00-supporting-files/data/`
+**New Component/Module:**
+- Implementation: Place module code in the active experiment worktree (for example `02-worktrees/chat-extraction/`) alongside its `pyproject.toml`.
 
-**New Dev Log Entry:**
-- Copy `00-dev-log/00-template.md` and fill in the date and progress
-
-**New Git Submodule:**
-- Add to `.gitmodules` and initialize in an appropriately numbered directory
-
-**New Top-Level Section:**
-- Follow the `NN-descriptive-name/` convention
-- Use the next available number (currently `03-*` is next)
-
-**New Worktree:**
-- Run `git worktree add 02-worktrees/<branch-name> <branch-name>`
-- Contents are automatically gitignored
+**Utilities:**
+- Shared helpers: Put reusable dataset/asset artifacts in `00-supporting-files/data/` and reference them from worktree code.
 
 ## Special Directories
 
-**`01-dev-onboarding/`:**
-- Purpose: External developer onboarding content
-- Generated: No (git submodule)
-- Committed: Reference only (submodule pointer committed, content fetched on init)
-
 **`02-worktrees/`:**
-- Purpose: Git worktree working directories
-- Generated: Yes (created by `git worktree add`)
-- Committed: No (contents gitignored; only `README.md` is tracked)
+- Purpose: Container for branch-linked worktrees used for parallel development.
+- Generated: Yes (directories are created/managed through git worktree operations).
+- Committed: Partially (directory + `02-worktrees/README.md` are committed; most child worktree contents are ignored by root `.gitignore`).
 
-## Git Branches
+**`.planning/codebase/`:**
+- Purpose: Generated architecture/convention maps consumed by GSD planning and execution commands.
+- Generated: Yes.
+- Committed: Yes (intended documentation artifacts).
 
-**Active branches:**
-- `master` - Main/default branch
-- `vibe-coding` - Current working branch
-- `worktrees` - Worktree structure branch
-- `00-experiments` / `experiments` - Sandbox/experimentation branch
+**`00-supporting-files/data/extractions/`:**
+- Purpose: Persist extraction outputs and run metrics as JSONL artifacts.
+- Generated: Yes.
+- Committed: Yes in this checkout state.
 
 ---
 
-*Structure analysis: 2026-02-13*
+*Structure analysis: 2026-02-21*

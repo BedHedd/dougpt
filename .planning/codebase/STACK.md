@@ -1,71 +1,74 @@
 # Technology Stack
 
-**Analysis Date:** 2026-02-13
+**Analysis Date:** 2026-02-21
 
 ## Languages
 
 **Primary:**
-- Python 3.13 (pinned on `00-experiments` branch via `.python-version`)
-- Markdown - Documentation, dev logs, and Foam templates
+- Python 3.13 - Application and experimentation code in `02-worktrees/chat-extraction/chat-extraction.py`, `02-worktrees/old-master/02-development/chat-extraction/chat-extraction.py`, and project manifests in `02-worktrees/*/pyproject.toml`.
 
 **Secondary:**
-- None detected
+- TOML - Project and dependency metadata in `02-worktrees/00-experiments/pyproject.toml`, `02-worktrees/chat-extraction/pyproject.toml`, `02-worktrees/old-master/pyproject.toml`, and lockfiles in `02-worktrees/*/uv.lock`.
+- Jupyter Notebook JSON - Experiment notebooks in `02-worktrees/chat-extraction/chat-extraction-script.ipynb`, `02-worktrees/chat-extraction/extraction-review.ipynb`, and `02-worktrees/*/sandbox.ipynb`.
+- Markdown - Project documentation in `README.md`, `02-worktrees/README.md`, and `02-worktrees/*/README.md`.
 
 ## Runtime
 
 **Environment:**
-- Python 3.13 (pinned on `00-experiments` branch)
-- Virtual environment managed by uv on experiment branches
+- CPython 3.13 (minimum `>=3.13` in `02-worktrees/00-experiments/pyproject.toml`, `02-worktrees/chat-extraction/pyproject.toml`, `02-worktrees/old-master/pyproject.toml`; pinned locally via `02-worktrees/*/.python-version`).
 
 **Package Manager:**
-- uv (on `00-experiments` branch — `pyproject.toml` + `uv.lock`)
-- Template branches (master/vibe-coding) have no package manager — by design
+- uv (usage documented in `02-worktrees/README.md` and `02-worktrees/*/README.md` with `uv sync` and `uv add`).
+- Lockfile: present (`02-worktrees/00-experiments/uv.lock`, `02-worktrees/chat-extraction/uv.lock`, `02-worktrees/old-master/uv.lock`).
 
 ## Frameworks
 
 **Core:**
-- None on template branches — application frameworks are branch-specific
-- `00-experiments` branch includes: ipykernel, openai, python-dotenv
+- marimo >=0.18.4 - Notebook app framework for interactive Python workflows (`02-worktrees/chat-extraction/pyproject.toml`, `02-worktrees/chat-extraction/chat-extraction.py`).
+- openai >=1.91.0 - OpenAI-compatible client used for chat-completions inference (`02-worktrees/chat-extraction/pyproject.toml`, `02-worktrees/chat-extraction/chat-extraction.py`).
 
 **Testing:**
-- None configured - no test framework detected
+- Not detected (no pytest/jest/vitest configs or test directories in repository root; `03-app/app.py` is empty at `02-worktrees/old-master/03-app/app.py`).
 
 **Build/Dev:**
-- Foam (VS Code extension) - Knowledge management / note templates in `.foam/templates/`
-- Git submodules - Used for embedding external repos (see `.gitmodules`)
-- Git worktrees - Supported workflow for parallel development (see `02-worktrees/README.md`)
+- ipykernel >=6.29.5 - Notebook kernel support (`02-worktrees/*/pyproject.toml`).
+- python-dotenv >=1.1.0 - Local environment variable loading (`02-worktrees/chat-extraction/pyproject.toml`, imported in `02-worktrees/chat-extraction/chat-extraction.py`).
+- opencv-python >=4.12.0.88, pandas >=2.3.3, pillow >=12.1.0, plotly >=6.5.2 - Data and vision tooling in the chat extraction workflow (`02-worktrees/chat-extraction/pyproject.toml`).
 
 ## Key Dependencies
 
 **Critical:**
-- ipykernel >=6.29.5 (on `00-experiments` branch)
-- openai >=1.91.0 (on `00-experiments` branch)
-- python-dotenv >=1.1.0 (on `00-experiments` branch)
+- `marimo` - Defines the executable app surface via `marimo.App(...)` and `@app.cell` orchestration in `02-worktrees/chat-extraction/chat-extraction.py`.
+- `openai` - Drives model calls via `OpenAI(...).chat.completions.create(...)` in `02-worktrees/chat-extraction/chat-extraction.py`.
+- `opencv-python` - Used for frame/video handling and FFmpeg-backed decoding experiments in `02-worktrees/chat-extraction/chat-extraction.py`.
 
 **Infrastructure:**
-- Git submodule: `01-dev-onboarding` from `https://github.com/progressEdd/dev-onboarding.git` (master branch)
+- `uv` lock model - Reproducible Python environments backed by `02-worktrees/*/uv.lock`.
+- `python-dotenv` - Intended local env configuration loader imported in `02-worktrees/chat-extraction/chat-extraction.py`.
+- Git worktrees - Multi-branch workspace layout documented in `02-worktrees/README.md` and reflected by `02-worktrees/00-experiments`, `02-worktrees/chat-extraction`, `02-worktrees/old-master`.
 
 ## Configuration
 
 **Environment:**
-- `.env` is gitignored
-- `00-supporting-files/data/sample.env.file` exists as a reference template (contents blocked from reading)
-- No environment variable loading code detected
+- Python version baseline is configured via `02-worktrees/00-experiments/.python-version`, `02-worktrees/chat-extraction/.python-version`, and `02-worktrees/old-master/.python-version`.
+- `python-dotenv` is included and imported (`02-worktrees/chat-extraction/pyproject.toml`, `02-worktrees/chat-extraction/chat-extraction.py`), but no checked-in `.env` file is detected in scanned directories.
+- `.env` files are ignored by policy in `.gitignore`, `02-worktrees/chat-extraction/.gitignore`, and `02-worktrees/old-master/.gitignore`.
 
 **Build:**
-- No build configuration files present
-- `.gitignore` is comprehensive Python-oriented (covers `__pycache__`, `.venv`, `.env`, `.pytest_cache`, `.mypy_cache`, `.ruff_cache/`, etc.)
+- Build/package metadata is centralized in `02-worktrees/*/pyproject.toml`.
+- Dependency resolution is pinned in `02-worktrees/*/uv.lock`.
+- marimo runtime config is set in `02-worktrees/old-master/pyproject.toml` under `[tool.marimo.runtime]`.
 
 ## Platform Requirements
 
 **Development:**
-- Git with submodule support
-- VS Code with Foam extension (optional, for knowledge management)
-- Python 3.13 interpreter (pinned on experiment branches)
+- Python 3.13 runtime (`02-worktrees/*/.python-version`, `02-worktrees/*/pyproject.toml`).
+- uv installed for `uv sync` workflows (`02-worktrees/README.md`, `02-worktrees/*/README.md`).
+- FFmpeg binary available for subprocess calls in extraction workflows (`02-worktrees/chat-extraction/chat-extraction.py`).
 
 **Production:**
-- No deployment target configured — this is a project template; deployment is branch-specific
+- Not detected (repository state is experimentation-oriented notebooks/worktrees with no deployment manifest or production service entrypoint; `02-worktrees/old-master/03-app/app.py` is empty).
 
 ---
 
-*Stack analysis: 2026-02-13*
+*Stack analysis: 2026-02-21*
