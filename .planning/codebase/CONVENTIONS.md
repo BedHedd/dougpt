@@ -1,104 +1,79 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-02-13
+**Analysis Date:** 2026-02-21
 
 ## Naming Patterns
 
 **Files:**
-- Use lowercase with hyphens for markdown files: `daily-note.md`, `new-template.md`
-- Use lowercase for Python files: `app.py`
-- Use numeric prefixes (`00-`) for ordering within directories
-
-**Directories:**
-- Use two-digit numeric prefix + hyphenated descriptive name: `00-dev-log/`, `02-worktrees/`
-- Prefix numbers indicate category: `00` = meta/support, `01` = onboarding, `02` = dev tools
+- Hyphenated snake_case filenames for marimo notebooks (`02-worktrees/chat-extraction/chat-extraction.py`, `02-worktrees/old-master/02-development/chat-extraction/chat-extraction.py`).
 
 **Functions:**
-- Not yet established (no application code)
+- Marimo-generated cell functions named `_` and decorated with `@app.cell`, relying on dependency injection rather than explicit function names.
 
 **Variables:**
-- Not yet established (no application code)
+- snake_case for locals such as `project_parent`, `video_dir`, `compressed_frame`; uppercase constants for configuration (`MODEL`, `BASE_URL`, `API_KEY`) in `02-worktrees/chat-extraction/chat-extraction.py`.
 
 **Types:**
-- Not yet established (no application code)
+- Minimal typing; only commented-out Pydantic models include annotations in `02-worktrees/chat-extraction/chat-extraction.py`; no repository-level type checker configuration.
 
 ## Code Style
 
 **Formatting:**
-- No formatter configured (no `.prettierrc`, `pyproject.toml` with black/ruff settings, etc.)
-- Recommendation: Configure `ruff` (already referenced in `.gitignore` via `.ruff_cache/`)
+- No formatter configuration (no Black/ruff/flake8 configs); formatting is manual with multi-line comment blocks and long strings kept inline.
 
 **Linting:**
-- No linter configured
-- `.gitignore` includes entries for `ruff`, `mypy`, `pytype`, and `pyre`, suggesting Python type checking may be added
-- Recommendation: Configure `ruff` for linting and formatting
+- No linting tools configured or referenced in `pyproject.toml`; style enforcement is ad hoc.
 
 ## Import Organization
 
 **Order:**
-- Not yet established (no imports in codebase)
+1. Standard library modules pulled per cell (e.g., `pathlib`, `base64`, `subprocess`).
+2. Third-party imports (`marimo`, `openai`, `opencv-python`, `pydantic`, `dotenv`).
+3. Local paths derived via `Path` and returned from prior cells; no intra-package imports.
 
 **Path Aliases:**
-- None configured
+- None; paths are built with `pathlib.Path` literals.
 
 ## Error Handling
 
 **Patterns:**
-- Not yet established
+- Limited handling: `try/except NameError` fallback to `Path.cwd()` in `02-worktrees/chat-extraction/chat-extraction.py`; external commands executed with `subprocess.run(..., capture_output=True)` and outputs printed without retries or exceptions; most cells assume happy paths.
 
 ## Logging
 
-**Framework:** Not configured
+**Framework:**
+- Console-style logging via `print`; markdown and `mo.md`/`Markdown` outputs used for interactive display; no structured logging library.
 
 **Patterns:**
-- Not yet established
+- Diagnostic prints for subprocess return codes and stderr; otherwise silent unless marimo renders markdown.
 
 ## Comments
 
 **When to Comment:**
-- Not yet established
+- Heavy use of commented-out experimental code blocks to toggle steps (FFmpeg/OpenCV diagnostics, model prompts) inside `02-worktrees/chat-extraction/chat-extraction.py`; few inline clarifying comments.
 
 **JSDoc/TSDoc:**
-- Not applicable (Python codebase)
+- Not applicable; no docstrings or structured doc comments present.
 
 ## Function Design
 
-**Size:** Not yet established
-**Parameters:** Not yet established
-**Return Values:** Not yet established
+**Size:**
+- Cells are short and single-purpose, often returning data or printing diagnostics; many placeholder cells return immediately.
+
+**Parameters:**
+- Parameters mirror marimo dependency injection (e.g., `def _(Markdown, client, compressed_frame, image_file_to_data_url):`), pulling values from prior cells rather than explicit argument passing.
+
+**Return Values:**
+- Cells typically return tuples or nothing; no explicit result objects or error propagation.
 
 ## Module Design
 
-**Exports:** Not yet established
-**Barrel Files:** Not applicable
+**Exports:**
+- Modules expose a single `app = marimo.App(...)` entry point; no reusable helpers or classes are exported.
 
-## Documentation Conventions
-
-**README files:**
-- Each major directory has or should have a `README.md` explaining its purpose
-- `02-worktrees/README.md` is the exemplar: includes "What", "Usage" with code examples, and "Notes"
-
-**Dev Logs:**
-- Follow template in `00-dev-log/00-template.md`: Date heading, "Overall Progress" checklist, "Elaboration" section
-
-**Foam Templates:**
-- Use VS Code snippet variables: `${CURRENT_YEAR}`, `${CURRENT_MONTH}`, `${CURRENT_DATE}`
-- Located in `.foam/templates/`
-
-## Git Conventions
-
-**Commit Messages:**
-- Lowercase, imperative style: "move python files to worktree", "add markdown display code", "update instructions to use experiments branch"
-- No conventional commit prefixes (no `feat:`, `fix:`, etc.)
-
-**Branch Naming:**
-- Descriptive hyphenated names: `vibe-coding`, `worktrees`
-- Numeric prefix for experimental: `00-experiments`
-
-**Submodules:**
-- External shared resources are added as git submodules
-- Defined in `.gitmodules`
+**Barrel Files:**
+- None; single-module layout without packaging structure.
 
 ---
 
-*Convention analysis: 2026-02-13*
+*Convention analysis: 2026-02-21*

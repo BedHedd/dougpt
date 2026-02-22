@@ -5,115 +5,98 @@
 ## Test Framework
 
 **Runner:**
-- Not detected for automated code tests in current codebase.
-- Config: Not detected (`pytest.ini`, `tox.ini`, `jest.config.*`, `vitest.config.*` are absent in `/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/dougpt`).
+- Not detected; no pytest/unittest configuration in `pyproject.toml` under `02-worktrees/chat-extraction` or `02-worktrees/old-master`.
 
 **Assertion Library:**
-- Built-in Python `assert` is used in documented one-liner checks inside planning/UAT docs (`.planning/phases/01-template-preparation/01-01-PLAN.md`).
+- Not applicable (no test suite present).
 
 **Run Commands:**
 ```bash
-# Automated unit/integration suite
-Not applicable (no test runner configured)
-
-# Manual template substitution verification
-python3 -c "from string import Template; t = Template(open('02-worktrees/00-experiments/README.md').read()); r = t.safe_substitute(project_name='Test', description='A test project', branch_name='test-branch', created_date='2026-01-01'); assert '$project_name' not in r"
-
-# Manual UAT evidence location
-Read .planning/phases/01-template-preparation/01-UAT.md
+# Not configured (no test runner defined)
 ```
 
 ## Test File Organization
 
 **Location:**
-- No `*.test.*`, `*.spec.*`, `test_*.py`, or `*_test.py` files are detected in `/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/dougpt`.
-- Manual acceptance tests are documented in `.planning/phases/01-template-preparation/01-UAT.md`.
+- No test files in the repository; introduce new tests under `02-worktrees/chat-extraction/tests/` or co-located `test_*.py` files alongside modules such as `02-worktrees/chat-extraction/chat-extraction.py`.
 
 **Naming:**
-- UAT files follow phase naming pattern `{phase-id}-UAT.md` and `{phase-id}-{plan-id}-PLAN.md` (for example `.planning/phases/01-template-preparation/01-UAT.md`).
+- Not established; adopt pytest-style `test_*.py` and `Test*` classes for future work.
 
 **Structure:**
 ```
-.planning/phases/<phase-name>/
-  <phase>-<plan>-PLAN.md
-  <phase>-<plan>-SUMMARY.md
-  <phase>-UAT.md
+# Not defined; prefer pytest modules grouped by feature under tests/
 ```
 
 ## Test Structure
 
 **Suite Organization:**
-```typescript
-### 1. <Behavior being validated>
-expected: <deterministic command and expected output>
-result: pass|fail
+```
+# None implemented; use pytest functions or classes with fixtures when added
 ```
 
 **Patterns:**
-- Setup pattern: define explicit shell/python command and expected observable output in plan docs (`.planning/phases/01-template-preparation/01-01-PLAN.md`).
-- Teardown pattern: verify clean git status (`git -C 02-worktrees/00-experiments status --porcelain`) documented in `.planning/phases/01-template-preparation/01-01-PLAN.md`.
-- Assertion pattern: use direct `assert` checks in Python one-liners and mark `result: pass` in UAT (`.planning/phases/01-template-preparation/01-UAT.md`).
+- Setup/Teardown: Not defined; use pytest fixtures for shared paths (e.g., sample frame directories) when tests are created.
+- Assertion: No pattern; prefer explicit `assert` statements with clear failure messages.
+- Async: Not in use; handle sync I/O only.
 
 ## Mocking
 
-**Framework:** Not used
+**Framework:**
+- None in use; future tests can rely on `unittest.mock` or `pytest` monkeypatching for OpenAI clients and filesystem access.
 
 **Patterns:**
-```typescript
-Not applicable: no unittest/pytest mocking fixtures or mock libraries detected.
+```
+# No mocking examples; wrap external services (OpenAI, subprocess, file I/O) behind fixtures for determinism
 ```
 
 **What to Mock:**
-- No established code-test mock boundary exists yet; current checks validate generated template output directly (`.planning/phases/01-template-preparation/01-01-PLAN.md`).
+- External APIs (`openai.OpenAI`), subprocess invocations (`subprocess.run` for FFmpeg), and filesystem-heavy operations when adding tests.
 
 **What NOT to Mock:**
-- Do not mock template substitution behavior when validating `string.Template.safe_substitute()`; run it directly against `02-worktrees/00-experiments/README.md` as shown in `.planning/phases/01-template-preparation/01-01-PLAN.md`.
+- Pure data formatting helpers and Pydantic models once they are enabled.
 
 ## Fixtures and Factories
 
 **Test Data:**
-```typescript
-project_name='Test Project'
-description='A test'
-branch_name='test-branch'
-created_date='2026-01-01'
+```
+# None present; create fixtures for sample frames under 02-worktrees/chat-extraction/tests/data/
 ```
 
 **Location:**
-- Inline in test command snippets within `.planning/phases/01-template-preparation/01-01-PLAN.md`.
+- Not defined; co-locate fixtures with tests or under `02-worktrees/chat-extraction/tests/data/` for reproducible assets.
 
 ## Coverage
 
 **Requirements:**
-- None enforced: no coverage tool config (`coverage.py`, `pytest-cov`, nyc, lcov) is detected in `/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/dougpt`.
+- None enforced; no coverage tools configured.
 
 **View Coverage:**
 ```bash
-Not applicable (no coverage pipeline configured)
+# Add pytest-cov and run: uv run pytest --cov=chat_extraction --cov-report=term-missing
 ```
 
 ## Test Types
 
 **Unit Tests:**
-- Not used in executable source directories (`02-worktrees/chat-extraction/`, `02-worktrees/old-master/03-app/`).
+- Not present; add around isolated helpers once extracted from `02-worktrees/chat-extraction/chat-extraction.py`.
 
 **Integration Tests:**
-- Manual integration checks are documented as command-based acceptance criteria in `.planning/phases/01-template-preparation/01-01-PLAN.md` and reported in `.planning/phases/01-template-preparation/01-UAT.md`.
+- Not present; consider validating OpenAI response parsing with recorded fixtures.
 
 **E2E Tests:**
-- Not used.
+- Not used; manual marimo execution only.
 
 ## Common Patterns
 
 **Async Testing:**
-```typescript
-Not detected: no async test framework usage.
+```
+# Not applicable; codebase is synchronous
 ```
 
 **Error Testing:**
-```typescript
-# Pattern documented in plan: assertions fail with explicit messages
-assert data['project']['readme'] == 'README.md', 'readme field mismatch'
+```
+# Not implemented; add tests asserting failures when frames or API responses are missing
 ```
 
 ---

@@ -5,69 +5,65 @@
 ## Languages
 
 **Primary:**
-- Python 3.13 - Application and experimentation code in `02-worktrees/chat-extraction/chat-extraction.py`, `02-worktrees/old-master/02-development/chat-extraction/chat-extraction.py`, and project manifests in `02-worktrees/*/pyproject.toml`.
+- Python 3.13 – interactive notebooks and scripts in `02-worktrees/chat-extraction`, `02-worktrees/00-experiments`, `02-worktrees/old-master` (`.python-version` in each worktree)
 
 **Secondary:**
-- TOML - Project and dependency metadata in `02-worktrees/00-experiments/pyproject.toml`, `02-worktrees/chat-extraction/pyproject.toml`, `02-worktrees/old-master/pyproject.toml`, and lockfiles in `02-worktrees/*/uv.lock`.
-- Jupyter Notebook JSON - Experiment notebooks in `02-worktrees/chat-extraction/chat-extraction-script.ipynb`, `02-worktrees/chat-extraction/extraction-review.ipynb`, and `02-worktrees/*/sandbox.ipynb`.
-- Markdown - Project documentation in `README.md`, `02-worktrees/README.md`, and `02-worktrees/*/README.md`.
+- Not detected
 
 ## Runtime
 
 **Environment:**
-- CPython 3.13 (minimum `>=3.13` in `02-worktrees/00-experiments/pyproject.toml`, `02-worktrees/chat-extraction/pyproject.toml`, `02-worktrees/old-master/pyproject.toml`; pinned locally via `02-worktrees/*/.python-version`).
+- CPython 3.13 (per `02-worktrees/chat-extraction/.python-version`, `02-worktrees/00-experiments/.python-version`, `02-worktrees/old-master/.python-version`)
 
 **Package Manager:**
-- uv (usage documented in `02-worktrees/README.md` and `02-worktrees/*/README.md` with `uv sync` and `uv add`).
-- Lockfile: present (`02-worktrees/00-experiments/uv.lock`, `02-worktrees/chat-extraction/uv.lock`, `02-worktrees/old-master/uv.lock`).
+- uv – Python dependency management (`02-worktrees/chat-extraction/pyproject.toml`, `02-worktrees/00-experiments/pyproject.toml`, `02-worktrees/old-master/pyproject.toml`)
+- Lockfile: present (`02-worktrees/chat-extraction/uv.lock`, `02-worktrees/00-experiments/uv.lock`, `02-worktrees/old-master/uv.lock`)
 
 ## Frameworks
 
 **Core:**
-- marimo >=0.18.4 - Notebook app framework for interactive Python workflows (`02-worktrees/chat-extraction/pyproject.toml`, `02-worktrees/chat-extraction/chat-extraction.py`).
-- openai >=1.91.0 - OpenAI-compatible client used for chat-completions inference (`02-worktrees/chat-extraction/pyproject.toml`, `02-worktrees/chat-extraction/chat-extraction.py`).
+- marimo 0.19.4 – reactive notebook-style app framework used for chat extraction workflows (`02-worktrees/chat-extraction/chat-extraction.py`, `02-worktrees/old-master/02-development/chat-extraction/chat-extraction.py`)
+- OpenAI Python SDK 1.93.0 – OpenAI-compatible client for VLM/VLM chat completion calls (`02-worktrees/chat-extraction/chat-extraction.py`, `02-worktrees/old-master/02-development/chat-extraction/chat-extraction.py`)
 
 **Testing:**
-- Not detected (no pytest/jest/vitest configs or test directories in repository root; `03-app/app.py` is empty at `02-worktrees/old-master/03-app/app.py`).
+- Not detected
 
 **Build/Dev:**
-- ipykernel >=6.29.5 - Notebook kernel support (`02-worktrees/*/pyproject.toml`).
-- python-dotenv >=1.1.0 - Local environment variable loading (`02-worktrees/chat-extraction/pyproject.toml`, imported in `02-worktrees/chat-extraction/chat-extraction.py`).
-- opencv-python >=4.12.0.88, pandas >=2.3.3, pillow >=12.1.0, plotly >=6.5.2 - Data and vision tooling in the chat extraction workflow (`02-worktrees/chat-extraction/pyproject.toml`).
+- ipykernel / Jupyter stack – notebook execution support (`02-worktrees/chat-extraction/pyproject.toml`)
+- FFmpeg (external) – invoked for compressed frame extraction in marimo cells (`02-worktrees/chat-extraction/chat-extraction.py`)
 
 ## Key Dependencies
 
 **Critical:**
-- `marimo` - Defines the executable app surface via `marimo.App(...)` and `@app.cell` orchestration in `02-worktrees/chat-extraction/chat-extraction.py`.
-- `openai` - Drives model calls via `OpenAI(...).chat.completions.create(...)` in `02-worktrees/chat-extraction/chat-extraction.py`.
-- `opencv-python` - Used for frame/video handling and FFmpeg-backed decoding experiments in `02-worktrees/chat-extraction/chat-extraction.py`.
+- `openai` 1.93.0 – OpenAI-compatible chat and vision API client (`02-worktrees/chat-extraction/chat-extraction.py`)
+- `marimo` 0.19.4 – UI/runtime for interactive experiments (`02-worktrees/chat-extraction/chat-extraction.py`)
 
 **Infrastructure:**
-- `uv` lock model - Reproducible Python environments backed by `02-worktrees/*/uv.lock`.
-- `python-dotenv` - Intended local env configuration loader imported in `02-worktrees/chat-extraction/chat-extraction.py`.
-- Git worktrees - Multi-branch workspace layout documented in `02-worktrees/README.md` and reflected by `02-worktrees/00-experiments`, `02-worktrees/chat-extraction`, `02-worktrees/old-master`.
+- `opencv-python` 4.12.0.88 – video frame capture and AV1/VAAPI experimentation (`02-worktrees/chat-extraction/chat-extraction.py`)
+- `python-dotenv` 1.1.1 – loads `.env` for API/server config (`02-worktrees/chat-extraction/chat-extraction.py`)
+- `pandas` 2.3.3 – data wrangling support (`02-worktrees/chat-extraction/pyproject.toml`)
+- `pillow` 12.1.0 – image loading/processing (`02-worktrees/chat-extraction/pyproject.toml`)
+- `plotly` 6.5.2 – visualization utilities (`02-worktrees/chat-extraction/pyproject.toml`)
+- `pydantic` 2.11.7 – structured response modeling in experiments (`02-worktrees/chat-extraction/chat-extraction.py`)
 
 ## Configuration
 
 **Environment:**
-- Python version baseline is configured via `02-worktrees/00-experiments/.python-version`, `02-worktrees/chat-extraction/.python-version`, and `02-worktrees/old-master/.python-version`.
-- `python-dotenv` is included and imported (`02-worktrees/chat-extraction/pyproject.toml`, `02-worktrees/chat-extraction/chat-extraction.py`), but no checked-in `.env` file is detected in scanned directories.
-- `.env` files are ignored by policy in `.gitignore`, `02-worktrees/chat-extraction/.gitignore`, and `02-worktrees/old-master/.gitignore`.
+- Environment variables loaded via `python-dotenv`; `.env` present at `00-supporting-files/data/.env` (contents not inspected).
+- OpenAI-compatible base URL and API key are set inline for local servers in marimo notebooks (e.g., `base_url="http://localhost:1234/v1"`, `api_key="unused"` in `02-worktrees/chat-extraction/chat-extraction.py`).
 
 **Build:**
-- Build/package metadata is centralized in `02-worktrees/*/pyproject.toml`.
-- Dependency resolution is pinned in `02-worktrees/*/uv.lock`.
-- marimo runtime config is set in `02-worktrees/old-master/pyproject.toml` under `[tool.marimo.runtime]`.
+- Project metadata and dependencies defined in `pyproject.toml` files under `02-worktrees/chat-extraction/`, `02-worktrees/00-experiments/`, and `02-worktrees/old-master/`.
 
 ## Platform Requirements
 
 **Development:**
-- Python 3.13 runtime (`02-worktrees/*/.python-version`, `02-worktrees/*/pyproject.toml`).
-- uv installed for `uv sync` workflows (`02-worktrees/README.md`, `02-worktrees/*/README.md`).
-- FFmpeg binary available for subprocess calls in extraction workflows (`02-worktrees/chat-extraction/chat-extraction.py`).
+- Python 3.13 with uv installed; run `uv sync` inside each worktree to create the virtual environment (per `02-worktrees/chat-extraction/README.md`).
+- FFmpeg available on PATH for video frame extraction in marimo cells (`02-worktrees/chat-extraction/chat-extraction.py`).
+- Local OpenAI-compatible server reachable at `http://localhost:1234/v1` for VLM experiments.
 
 **Production:**
-- Not detected (repository state is experimentation-oriented notebooks/worktrees with no deployment manifest or production service entrypoint; `02-worktrees/old-master/03-app/app.py` is empty).
+- Not defined; current usage is local experimentation via marimo notebooks and local OpenAI-compatible servers.
 
 ---
 

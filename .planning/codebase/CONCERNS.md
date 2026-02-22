@@ -4,107 +4,50 @@
 
 ## Tech Debt
 
-**Worktree-only source of truth:**
-- Issue: Tracked planning docs prescribe implementation paths inside ignored worktrees, so the main checkout cannot validate or execute those references.
-- Files: `.gitignore`, `README.md`, `.planning/codebase/ARCHITECTURE.md`, `.planning/codebase/STACK.md`, `.planning/codebase/CONVENTIONS.md`, `.planning/codebase/STRUCTURE.md`, `.planning/codebase/INTEGRATIONS.md`.
-- Impact: Planning and execution can target files that do not exist in the current branch, causing broken automation and misleading implementation guidance.
-- Fix approach: Either commit canonical source files in the main branch or regenerate `.planning/codebase/*.md` from files that exist in this checkout and gate mapping docs with path-existence validation.
-
-**Data format inconsistency in extraction artifacts:**
-- Issue: Files named `*.jsonl` are not line-delimited JSON; `00-supporting-files/data/extractions/metrics.jsonl` and `00-supporting-files/data/extractions/failed_extractions.jsonl` store pretty-printed concatenated JSON objects, while `00-supporting-files/data/extractions/extractions.jsonl` stores one large JSON array.
-- Files: `00-supporting-files/data/extractions/extractions.jsonl`, `00-supporting-files/data/extractions/metrics.jsonl`, `00-supporting-files/data/extractions/failed_extractions.jsonl`.
-- Impact: Standard JSONL tooling and streaming pipelines fail, increasing parser complexity and error risk.
-- Fix approach: Normalize all extraction outputs to true JSONL (one compact JSON object per line) and add a schema/format validator in generation scripts.
+**Monolithic notebook code:** `02-worktrees/chat-extraction/chat-extraction.py` is a 4.5k-line marimo notebook that mixes UI cells, data samples, ffmpeg helpers, and model calls in one file, making it hard to reason about or reuse. Refactor into modules (I/O, vision extraction, model prompts) and move static sample outputs into fixtures or JSON under `00-supporting-files/data`.
+**Hard-coded paths & project discovery:** Multiple cells derive paths by searching for `00-supporting-files` and assume a sibling `large-files` directory with specific video names (e.g., `Doug and Twitch Chat TAKE OVER EUROPE-VpmmuHlLPM0.mkv`). Running outside this repo structure raises `StopIteration` before any work starts. Add explicit configuration (env/CLI args) and clear errors when required assets are missing.
+**Stale duplicate copy:** An older copy lives at `02-worktrees/old-master/02-development/chat-extraction/chat-extraction.py`, risking drift between worktrees. Consolidate to a single maintained module and delete or archive the obsolete variant.
+**Missing configuration loading:** `dotenv` is imported but never invoked; API hosts, model names, and paths are hard-coded in the notebook. Wire configuration through environment variables and load them explicitly at startup.
 
 ## Known Bugs
 
-**Extraction output duplication and missing frames:**
-- Symptoms: Expected kept frames are `6543` (`00-supporting-files/data/chat_frames_full_color/report.json`), but only `6539` unique filenames appear in `00-supporting-files/data/extractions/extractions.jsonl`; missing frames include `frame_005220_t001740.000.png`, `frame_018816_t006272.000.png`, `frame_040791_t013597.000.png`, `frame_046417_t015472.333.png`.
-- Files: `00-supporting-files/data/chat_frames_full_color/report.json`, `00-supporting-files/data/extractions/extractions.jsonl`, `00-supporting-files/data/extractions/failed_extractions.jsonl`.
-- Trigger: Retry/append behavior records repeated extractions for the same filename and leaves gaps for some expected frames.
-- Workaround: Post-process by deduplicating on `filename` and reconciling against frame report filenames before downstream use.
-
-**Failed extraction log has duplicate and incomplete records:**
-- Symptoms: `00-supporting-files/data/extractions/failed_extractions.jsonl` contains 5 records but only 2 unique filenames; `frame_040791_t013597.000.png` is logged 4 times and some missing output frames are not logged there.
-- Files: `00-supporting-files/data/extractions/failed_extractions.jsonl`, `00-supporting-files/data/extractions/extractions.jsonl`, `00-supporting-files/data/chat_frames_full_color/report.json`.
-- Trigger: Repeated retry failure appends duplicate rows and does not reliably capture every unrecovered frame.
-- Workaround: Rebuild failure inventory by diffing expected frame list from `report.json` against unique extracted filenames.
-
-**Long-tail model generation loop on wrapped text:**
-- Symptoms: Model output can repeat trailing characters until token cap is hit (documented example with repeated `k` and `finish_reason: "length"`).
-- Files: `00-dev-log/2026-02-09.md`, `00-supporting-files/images/2026-02-09/20260209234035_frame_018816_t006272.000.png`.
-- Trigger: Frames with wrapped or ambiguous text cause runaway continuation behavior.
-- Workaround: Prompt constraint (`"Transcribe exactly what’s visible; do not continue a pattern."`) and capped retry strategy documented in `00-dev-log/2026-02-09.md`.
+**Undefined variables in ffmpeg cell:** `02-worktrees/chat-extraction/chat-extraction.py:88` references `p`, `shlex`, and `subprocess` without defining or importing them, so executing the cell throws `NameError`. Remove the cell or add the missing imports and inputs.
+**Unreleased video handles:** `02-worktrees/chat-extraction/chat-extraction.py:213-239` opens a `cv2.VideoCapture` without closing it; repeated runs can leak file descriptors. Ensure captures are released via `with`-style helpers or explicit `release()`.
+**Asset assumptions without guards:** Keyframe inspection cells (`02-worktrees/chat-extraction/chat-extraction.py:3389-3452`, `4188-4190`) expect specific video files and cached reports to exist; when absent, they fail without actionable messaging. Add existence checks and user-facing errors.
 
 ## Security Considerations
 
-**User-generated chat content stored in committed artifacts:**
-- Risk: `00-supporting-files/data/extractions/extractions.jsonl` and `00-dev-log/2026-02-09.md` include raw usernames/messages, including profanity and potentially sensitive user text.
-- Files: `00-supporting-files/data/extractions/extractions.jsonl`, `00-dev-log/2026-02-09.md`.
-- Current mitigation: Not detected.
-- Recommendations: Add redaction/anonymization before commit, and keep raw extraction outputs in untracked storage for private analysis.
-
-**External dependency trust boundary via submodule:**
-- Risk: `01-dev-onboarding` is sourced from an external repository with branch tracking (`master`), creating supply-chain and availability risk if upstream changes or disappears.
-- Files: `.gitmodules`, `README.md`.
-- Current mitigation: Submodule pinning is implicit in git metadata, but no documented validation process exists in tracked docs.
-- Recommendations: Document integrity checks for submodule updates and record a fallback onboarding path in this repository.
+**Insecure default API target:** OpenAI client construction in `02-worktrees/chat-extraction/chat-extraction.py:344-380` uses `http://localhost:1234/v1` with no TLS or timeout, so accidental port exposure would transmit frames in cleartext or hang indefinitely. Parameterize the base URL, enforce HTTPS for remote hosts, and set conservative timeouts.
+**User data embedded in repo:** Sample Twitch chat frames and extracted text live under `00-supporting-files/data` and inline dictionaries (e.g., `qwen3_vl_30b_resp`), storing usernames and messages in git. If distribution is a concern, move samples to redacted fixtures or exclude them from the main history.
 
 ## Performance Bottlenecks
 
-**Extraction latency outliers dominate wall-clock runtime:**
-- Problem: `00-supporting-files/data/extractions/metrics.jsonl` shows extreme per-frame outliers (for example `59567.825s` for `frame_006302_t002100.667.png`) while median latency is much lower.
-- Files: `00-supporting-files/data/extractions/metrics.jsonl`.
-- Cause: Retry/hang behavior on hard frames without strict per-request timeout and isolation.
-- Improvement path: Enforce hard request timeout, circuit-breaker retry policy, and quarantine of pathological frames to a separate queue.
-
-**Repository artifact growth from generated outputs:**
-- Problem: Large generated files (for example `00-supporting-files/data/extractions/extractions.jsonl` ~16.5MB and `00-supporting-files/data/extractions/metrics.jsonl` ~2.5MB) are tracked in git.
-- Files: `00-supporting-files/data/extractions/extractions.jsonl`, `00-supporting-files/data/extractions/metrics.jsonl`, `00-supporting-files/data/full_chat_frames_report.json`, `00-supporting-files/data/chat_frames_full_color/report.json`.
-- Cause: Full-run artifacts are committed without archival or partitioning strategy.
-- Improvement path: Keep only sampled fixtures in git, move full-run artifacts to ignored storage, and generate summaries for reproducible analysis.
+**Full-video decoding in Python loop:** `reduce_chat_frames_by_scroll_color` (`02-worktrees/chat-extraction/chat-extraction.py:4300-4502`) streams entire videos through ffmpeg into Python, iterating frame-by-frame and optionally writing PNGs. Long videos will be CPU- and disk-heavy, and `kept` accumulates in memory. Consider downsampling earlier, chunked processing, and streaming results to disk without retaining full history.
+**Huge inline sample payloads:** Large hard-coded response dictionaries (e.g., `qwen3_vl_30b_resp` around `02-worktrees/chat-extraction/chat-extraction.py:1781`) inflate load time and memory for the notebook. Externalize samples to data files and lazy-load only when needed.
 
 ## Fragile Areas
 
-**Codebase maps can drift from actual checkout:**
-- Files: `.planning/codebase/ARCHITECTURE.md`, `.planning/codebase/STACK.md`, `.planning/codebase/CONVENTIONS.md`, `.planning/codebase/STRUCTURE.md`, `.planning/codebase/INTEGRATIONS.md`, `.gitignore`.
-- Why fragile: These documents reference many worktree files not present in the current tree, so future automation can fail before implementation starts.
-- Safe modification: Add a map-validation step that rejects docs containing non-existent required paths for the current branch.
-- Test coverage: No automated validation detected for `.planning/codebase/*.md` path integrity.
+**External tooling assumptions:** Many cells call `ffmpeg` and VAAPI-specific options (`02-worktrees/chat-extraction/chat-extraction.py:3380-3468`, `4305-4350`) without checking tool availability or GPU support, leading to abrupt failures on machines without those binaries/drivers. Add capability checks and graceful fallbacks.
+**Unbounded cache/output writes:** Frame extraction writes to tracked directories such as `00-supporting-files/data/chat_frames_test_30s_color` and `.../cropped_keyframe_cache` without cleanup or size limits. Large runs will bloat the repo and consume disk; direct outputs to git-ignored temp dirs and prune after runs.
 
 ## Scaling Limits
 
-**Per-frame LLM extraction scales linearly with high token burn:**
-- Current capacity: One processed run contains `9523` extraction records and `15,975,030` total tokens in `00-supporting-files/data/extractions/metrics.jsonl`.
-- Limit: Throughput and cost increase linearly with frame count; retry outliers can dominate total runtime.
-- Scaling path: Add upstream frame reduction/dedup before extraction, enforce bounded retries, and checkpoint progress in resumable batches.
+**Single-threaded, in-memory processing:** Extraction flows (`02-worktrees/chat-extraction/chat-extraction.py:4300-4502`) operate serially and store metadata for every kept frame, limiting throughput for multi-hour videos. Introduce batched processing, progress checkpoints, and streaming metadata to disk to handle larger corpora.
+**Manual notebook workflow only:** All functionality is embedded in an interactive marimo notebook with no CLI or pipeline hooks, blocking automation or batch scaling. Extract reusable functions into a package and provide a script/CLI entry point.
 
 ## Dependencies at Risk
 
-**`01-dev-onboarding` submodule availability:**
-- Risk: Upstream repository availability and branch behavior can block onboarding flows.
-- Impact: Setup paths documented in `README.md` can fail for fresh clones if submodule fetch or branch resolution fails.
-- Migration plan: Mirror critical onboarding docs/scripts into tracked files in this repository and treat submodule as optional enhancement.
+**System ffmpeg and OpenCV coupling:** Functions depend on system `ffmpeg` and `opencv-python` (`02-worktrees/chat-extraction/chat-extraction.py:3380-3468`, `213-239`) with no version pin or feature detection; differing builds (e.g., missing AV1/VAAPI) will break extraction. Pin tested versions in `pyproject.toml`/`uv.lock` and add runtime capability checks.
+**Marimo-only orchestration:** The notebook relies on marimo execution order (`02-worktrees/chat-extraction/chat-extraction.py`) rather than importable modules, so library upgrades or marimo API changes can silently break cells. Stabilize on a tested marimo version and migrate shared logic into plain Python modules.
 
 ## Missing Critical Features
 
-**No tracked runtime project files in the main branch checkout:**
-- Problem: No tracked `pyproject.toml`, `package.json`, or executable source modules exist in the current branch, while planning docs assume active runtime code under `02-worktrees/`.
-- Blocks: Reproducible environment setup and direct execution/validation from this checkout.
+**No reproducible pipeline:** There is no scripted path to go from raw video to extracted chat text; everything is manual cell execution. Provide a documented CLI that ingests a video path, extracts frames, and runs the VLM with configurable parameters and outputs.
+**Lack of validation/QA:** Model outputs are not checked against any ground truth; stored samples are anecdotal. Add small labeled fixtures under `00-supporting-files/data/extractions` and assertions to measure accuracy and bounding-box consistency.
 
 ## Test Coverage Gaps
 
-**No automated checks for extraction data integrity:**
-- What's not tested: Uniqueness of extracted filenames, expected-vs-produced frame completeness, and failure-log consistency.
-- Files: `00-supporting-files/data/chat_frames_full_color/report.json`, `00-supporting-files/data/extractions/extractions.jsonl`, `00-supporting-files/data/extractions/failed_extractions.jsonl`, `00-supporting-files/data/extractions/metrics.jsonl`.
-- Risk: Silent data corruption (duplicates, missing frames, malformed JSONL) propagates into downstream analysis.
-- Priority: High.
-
-**No CI or test harness in tracked root:**
-- What's not tested: Planning doc path validity, worktree assumptions, and schema/format compliance for generated artifacts.
-- Files: `.planning/codebase/*.md`, `.planning/phases/01-template-preparation/01-01-PLAN.md`, `.planning/phases/01-template-preparation/01-UAT.md`.
-- Risk: Operational drift accumulates until manual checks fail late.
-- Priority: High.
+**No automated tests:** The repository has no unit or integration tests covering ffmpeg helpers, frame selection heuristics, or OpenAI client code (`02-worktrees/chat-extraction/chat-extraction.py`, `pyproject.toml`). Introduce at least smoke tests for frame extraction and deterministic parsing, and mock API calls to keep tests offline.
 
 ---
 
