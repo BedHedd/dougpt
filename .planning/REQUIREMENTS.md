@@ -39,6 +39,12 @@ Requirements for initial release. Each maps to roadmap phases.
 - **WKFL-04**: Stale branch detection
 - **WKFL-05**: Branch naming convention enforcement
 
+### Chat Extraction Pipeline
+
+- [x] **CHAT-01**: Notebook can extract audio from a local video file into a transcription-ready audio file
+- [x] **CHAT-02**: Notebook runs a local Whisper model and saves transcript output in a reusable file format
+- **CHAT-03**: Notebook runs a local LLM pass that segments transcript content into chat-style blocks aligned with `00-dev-log/2026-02-09.md`
+
 ## Out of Scope
 
 | Feature | Reason |
@@ -66,6 +72,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FILE-03 | Phase 2: Branch Creation Flow | Done |
 | FILE-04 | Phase 2: Branch Creation Flow | Done |
 | ROOT-01 | Phase 3: Root README Index | Done |
+| CHAT-01 | Phase 2: Audio Extraction Review Pipeline | Done |
+| CHAT-02 | Phase 2: Audio Extraction Review Pipeline | Done |
+| CHAT-03 | Phase 2: Audio Extraction Review Pipeline | Planned |
 
 **Coverage:**
 - v1 requirements: 10 total
@@ -73,6 +82,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 - Unmapped: 0
 - **Completed: 10/10 ✓**
 
+v2 active requirements (current): 8 total
+- Planned in roadmap: 8
+- Completed: 2/8
+
 ---
 *Requirements defined: 2026-02-13*
-*Last updated: 2026-02-13 — all v1 requirements delivered*
+*Last updated: 2026-02-22 — marked CHAT-01 and CHAT-02 complete for Phase 2 Plan 01*

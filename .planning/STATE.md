@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-13)
 
 **Core value:** Every experiment/feature branch is self-documenting from creation — branching, worktree setup, README population, and project naming happen automatically so you can start building immediately.
-**Current focus:** All v1 phases complete
+**Current focus:** Phase 2 execution (audio extraction review pipeline)
 
 ## Current Position
 
-Phase: 3 of 3 (Root README Index) — COMPLETE
-Plan: 1 of 1 in current phase
-Status: All phases complete. v1 requirements fully delivered.
-Last activity: 2026-02-13 — Executed Phase 3 directly (root README updated on master)
+Phase: 2 of 2 (Audio Extraction Review Pipeline) — IN PROGRESS
+Plan: 1 of 2 in current phase
+Status: 02-01 completed (extraction + transcription backbone); ready for 02-02 segmentation plan.
+Last activity: 2026-02-22 — Completed 02-01 with notebook extraction/transcription checkpoints and run metadata.
 
-Progress: [██████████] 100%
+Progress: [███████░░░] 75%
 
 ## Performance Metrics
 
@@ -36,6 +36,7 @@ Progress: [██████████] 100%
 - Trend: stable
 
 *Updated after each plan completion*
+| Phase 02 P01 | 3 min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -50,10 +51,14 @@ Recent decisions affecting current work:
 - [01-01]: Sentinel comment placed on first line for trivial detection and clean removal
 - [02-01]: Phase 2 executed directly (no formal plan file) per user instruction — all 5 success criteria verified
 - [03-01]: Phase 3 executed via Option A (stash → checkout master → edit → commit → checkout back → pop stash) — both success criteria verified
+- [Phase 02]: Used mono 16k FLAC extraction defaults for deterministic ASR-ready artifacts
+- [Phase 02]: Applied best-effort diarization with UNKNOWN fallback and logged fallback reasons
+- [Phase 02]: Recorded per-run metadata with resume counters to support idempotent reruns
 
 ### Pending Todos
 
-None. All v1 requirements delivered.
+- Execute Phase 2 plan 02-02 (LLM segmentation and end-to-end orchestration)
+- Validate end-to-end notebook run on `audio-extraction-review` worktree
 
 ### Blockers/Concerns
 
@@ -61,6 +66,6 @@ None. Cross-branch editing (Phase 3 concern) resolved via stash/checkout pattern
 
 ## Session Continuity
 
-Last session: 2026-02-13
-Stopped at: All v1 phases complete. Project template workflow fully operational.
-Resume file: None
+Last session: 2026-02-22
+Stopped at: Completed 02-01-PLAN.md
+Resume file: .planning/phases/02-audio-extraction-review-pipeline/02-02-PLAN.md
