@@ -92,7 +92,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Data Ingestion & Manifests | 0/2 | Not started | - |
-| 2. Transcription & Alignment | 0/2 | Not started | - |
+| 2. Transcription & Alignment | 1/2 | In Progress|  |
 | 3. Dataset & Cleaning | 0/TBD | Not started | - |
 | 4. Fine-Tuning & Evaluation | 0/TBD | Not started | - |
 | 5. Inference & Guardrails | 0/TBD | Not started | - |
