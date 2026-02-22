@@ -1,0 +1,1 @@
+{"run_id": "task1-batch", "timestamp": "2026-02-22T02:30:31Z", "stage": "extract", "input_media": "/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/dougpt/large-files/missing.mp4", "status": "failed", "error": "input_not_found"}
