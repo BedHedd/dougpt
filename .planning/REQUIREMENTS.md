@@ -1,60 +1,62 @@
-# Requirements: Project Template Workflow
+# Requirements: DougPT
 
-**Defined:** 2026-02-13
-**Core Value:** Every experiment/feature branch is self-documenting from creation — GSD handles branching, worktree setup, README population, and project naming automatically.
+**Defined:** 2026-02-21
+**Core Value:** A locally fine-tuned model that reliably produces authentic DougDoug Twitch chat-style responses from recent audio context.
 
 ## v1 Requirements
 
 Requirements for initial release. Each maps to roadmap phases.
 
-### Template Preparation
+### Ingestion & Manifests
 
-- [x] **TMPL-01**: README template exists on `00-experiments` branch with `$placeholder` variables
-- [x] **TMPL-02**: Template includes sections: project name, description, what it does, how to run, status
+- [ ] **ING-01**: Fetch DougDoug VODs and Twitch chat logs with timestamps into versioned manifests.
+- [ ] **ING-02**: Demux audio from VODs and store checksums/metadata for reproducibility.
 
-### Branch & Worktree Creation
+### Transcription & Alignment
 
-- [x] **WKTR-01**: New branch created from `00-experiments` via atomic `git worktree add -b`
-- [x] **WKTR-02**: Worktree created in `02-worktrees/<branch-name>`
-- [x] **WKTR-03**: Pre-flight check detects duplicate branch or worktree before creation
+- [ ] **ALGN-01**: Transcribe VOD audio locally (Whisper or equivalent) with word-level timestamps.
+- [ ] **ALGN-02**: Estimate per-VOD chat/VOD time offsets and align chat messages to transcript windows with QA hooks.
 
-### File Population
+### Dataset & Cleaning
 
-- [x] **FILE-01**: README populated with project context (name, description, purpose)
-- [x] **FILE-02**: `pyproject.toml` `name` field updated to match project name
-- [x] **FILE-03**: `pyproject.toml` `description` field updated with project description
-- [x] **FILE-04**: `uv sync` runs after worktree creation to set up venv
+- [ ] **DATA-01**: Build paired training dataset (audio/transcript context → chat reply) with manifests and immutable splits.
+- [ ] **DATA-02**: Filter spam/bots/mod commands/emote-only noise; cap repeats and flag toxicity.
+- [ ] **DATA-03**: Include provenance (VOD id, offsets, ASR model/config) for every example.
 
-### Root README
+### Fine-Tuning
 
-- [x] **ROOT-01**: Root repo README on main branch updated to list active experiments/branches
+- [ ] **TRAIN-01**: Tokenize/prepare data with fixed prompt/context format shared with inference.
+- [ ] **TRAIN-02**: Fine-tune a local chat-capable base model using PEFT/QLoRA within single-GPU budget.
+
+### Evaluation
+
+- [ ] **EVAL-01**: Hold out streams/clips and report style/safety metrics plus human spot-checks.
+- [ ] **EVAL-02**: Detect regressions vs prior checkpoints and fail gate on safety/style drops.
+
+### Inference & Guardrails
+
+- [ ] **INF-01**: Provide local CLI/REST interface that returns chat-style responses from recent audio/transcript context.
+- [ ] **INF-02**: Enforce the same prompt/context spec as training; shadow-evaluate outputs for parity.
+- [ ] **SAFE-01**: Apply guardrails (toxicity/spam filters, rate limits) before returning responses.
 
 ## v2 Requirements
 
-### Workflow Enhancements
+### Differentiators & UX
 
-- **WKFL-01**: Custom base branch option (not just `00-experiments`)
-- **WKFL-02**: Auto-generated table in root README with branch status
-- **WKFL-03**: Worktree cleanup/pruning commands
-- **WKFL-04**: Stale branch detection
-- **WKFL-05**: Branch naming convention enforcement
-
-### Chat Extraction Pipeline
-
-- [x] **CHAT-01**: Notebook can extract audio from a local video file into a transcription-ready audio file
-- [x] **CHAT-02**: Notebook runs a local Whisper model and saves transcript output in a reusable file format
-- [x] **CHAT-03**: Notebook runs a local LLM pass that segments transcript content into chat-style blocks aligned with `00-dev-log/2026-02-09.md`
+- **DIFF-01**: Time-synced playback simulator to compare model outputs against real chat.
+- **DIFF-02**: Style controls (e.g., toxicity/chaos/enthusiasm sliders) to tune chat energy.
+- **DIFF-03**: DougDoug meme/lexicon augmentation to boost authenticity.
+- **DIFF-04**: Scene/speaker-aware context selection for harder clips.
+- **DIFF-05**: Data augmentation for robustness (e.g., synthetic paraphrases or timing jitter).
+- **DIFF-06**: Distill to a smaller model for low-VRAM inference once quality is validated.
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Shell script wrapper | GSD handles the workflow directly |
-| Shared venvs across worktrees | Each worktree gets its own venv from `uv sync` |
-| GUI/TUI for worktree management | CLI + GSD is sufficient |
-| Auto-merge between experiment branches | Experiments are independent |
-| `02-worktrees/README.md` updates | Serves manual users, not GSD workflow |
-| Template inheritance/composition | Over-engineering for a personal template |
+| Live Twitch bot deployment | Focus on offline/local usage first; avoid TOS/automation risk. |
+| Cloud-hosted proprietary LLM APIs | Local-first for cost/control and reproducibility. |
+| Redistribution of VOD media | Licensing risk; use data for internal training only. |
 
 ## Traceability
 
@@ -62,30 +64,32 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TMPL-01 | Phase 1: Template Preparation | Done |
-| TMPL-02 | Phase 1: Template Preparation | Done |
-| WKTR-01 | Phase 2: Branch Creation Flow | Done |
-| WKTR-02 | Phase 2: Branch Creation Flow | Done |
-| WKTR-03 | Phase 2: Branch Creation Flow | Done |
-| FILE-01 | Phase 2: Branch Creation Flow | Done |
-| FILE-02 | Phase 2: Branch Creation Flow | Done |
-| FILE-03 | Phase 2: Branch Creation Flow | Done |
-| FILE-04 | Phase 2: Branch Creation Flow | Done |
-| ROOT-01 | Phase 3: Root README Index | Done |
-| CHAT-01 | Phase 2: Audio Extraction Review Pipeline | Done |
-| CHAT-02 | Phase 2: Audio Extraction Review Pipeline | Done |
-| CHAT-03 | Phase 2: Audio Extraction Review Pipeline | Done |
+| ING-01 | Phase  | Pending |
+| ING-02 | Phase  | Pending |
+| ALGN-01 | Phase  | Pending |
+| ALGN-02 | Phase  | Pending |
+| DATA-01 | Phase  | Pending |
+| DATA-02 | Phase  | Pending |
+| DATA-03 | Phase  | Pending |
+| TRAIN-01 | Phase  | Pending |
+| TRAIN-02 | Phase  | Pending |
+| EVAL-01 | Phase  | Pending |
+| EVAL-02 | Phase  | Pending |
+| INF-01 | Phase  | Pending |
+| INF-02 | Phase  | Pending |
+| SAFE-01 | Phase  | Pending |
+| DIFF-01 | Phase  | Pending |
+| DIFF-02 | Phase  | Pending |
+| DIFF-03 | Phase  | Pending |
+| DIFF-04 | Phase  | Pending |
+| DIFF-05 | Phase  | Pending |
+| DIFF-06 | Phase  | Pending |
 
 **Coverage:**
-- v1 requirements: 10 total
-- Mapped to phases: 10 ✓
-- Unmapped: 0
-- **Completed: 10/10 ✓**
-
-v2 active requirements (current): 8 total
-- Planned in roadmap: 8
-- Completed: 2/8
+- v1 requirements: 14 total
+- Mapped to phases: 0
+- Unmapped: 14 ⚠️
 
 ---
-*Requirements defined: 2026-02-13*
-*Last updated: 2026-02-22 — marked CHAT-03 complete for Phase 2 Plan 02*
+*Requirements defined: 2026-02-21*
+*Last updated: 2026-02-21 after initial definition*
