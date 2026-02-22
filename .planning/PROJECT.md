@@ -2,12 +2,11 @@
 
 ## What This Is
 
-DougPT is a small project to build a chat-style AI model that behaves like Twitch chat from DougDoug streams.
-It focuses on extracting/cleaning chat messages from DougDoug stream recordings (or associated chat logs) and fine-tuning a ChatGPT-family model so it can generate “stream chat-like” responses on demand.
+DougPT is a pipeline and local LLM that ingests DougDoug stream recordings with their Twitch chat logs, aligns audio/video with chat messages, and fine-tunes a local model to respond like Twitch chat to DougDoug’s audio context. It targets creating realistic, time-synced chat-style responses for experimentation and offline playbacks.
 
 ## Core Value
 
-Given an input prompt, the system can generate safe, coherent, Twitch-chat-style output that feels like DougDoug stream chat.
+A locally fine-tuned model that reliably produces authentic DougDoug Twitch chat-style responses from recent audio context.
 
 ## Requirements
 
@@ -17,32 +16,35 @@ Given an input prompt, the system can generate safe, coherent, Twitch-chat-style
 
 ### Active
 
-- [ ] Extract and normalize DougDoug Twitch chat messages into a training dataset
-- [ ] Fine-tune a ChatGPT-family model on the dataset and run basic eval/sanity checks
-- [ ] Provide a simple way to run inference (CLI or small app) to test the tuned model
+- [ ] Ingest DougDoug VODs and corresponding Twitch chat logs with timestamps.
+- [ ] Transcribe stream audio and align it to chat message timing.
+- [ ] Build a clean paired dataset (audio/context → chat response) suitable for fine-tuning.
+- [ ] Fine-tune a local LLM to emulate DougDoug chat tone, memes, and pacing.
+- [ ] Provide an inference interface that consumes audio (or transcript context) and returns chat-style replies.
+- [ ] Evaluate quality with held-out segments and guardrails (toxicity, spam) before using outputs.
 
 ### Out of Scope
 
-- Live Twitch bot integration — not needed to validate the model and dataset pipeline
-- Audio/voice modeling — focus is text chat only
+- Full production Twitch integration or live deployment — focus on offline/local usage first.
+- Cloud-hosted proprietary LLM APIs — prioritize locally runnable models for cost/control.
 
 ## Context
 
-- Training data is Twitch chat from DougDoug streams; source material may be VOD chat logs or chat reconstructed from stream recordings.
-- Data quality matters (spam, emotes, copypasta, duplicates, timestamps, user ids) and will drive model behavior.
-- Compliance and safety matter (Twitch terms, privacy, disallowed content). Assume we need filtering and clear provenance.
+- Goal: create a reproducible pipeline from raw DougDoug streams + chat to a fine-tuned, local chat-mimicking model.
+- Existing codebase detected but unmapped; treat as greenfield for planning and build a map later if needed.
+- Source data: Twitch VOD recordings (audio/video) and exported chat logs; transcripts will be derived via ASR.
 
 ## Constraints
 
-- **Model**: Use ChatGPT-family models / OpenAI-compatible fine-tuning path — aligns with the intended deployment target.
-- **Safety**: Include dataset filtering and output guardrails appropriate for public chat-style text.
+- **Local-first**: Run models and training locally to avoid API cost and keep control over data.
+- **Data licensing/usage**: Use publicly available DougDoug streams and chat under fair-use-like constraints; avoid redistributing copyrighted media.
+- **Compute budget**: Target consumer-grade GPU setups; prefer parameter-efficient fine-tuning.
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Fine-tune a ChatGPT-family model | User explicitly wants “chatgpt models” | — Pending |
-| Train primarily on DougDoug stream chat | Keeps the style target narrow and testable | — Pending |
+| Local LLM over hosted API | Control cost, allow custom guardrails and offline use | — Pending |
 
 ---
-*Last updated: 2026-02-22 after initialization*
+*Last updated: 2026-02-21 after initialization*
