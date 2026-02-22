@@ -1,157 +1,148 @@
 # Project Research Summary
 
-**Project:** Project Template Workflow
-**Domain:** Git worktree-based project automation (developer tooling)
-**Researched:** 2026-02-13
-**Confidence:** HIGH
+**Project:** DougPT
+**Domain:** Local Twitch chat-style LLM tuned on DougDoug streams
+**Researched:** 2026-02-21
+**Confidence:** MEDIUM
 
 ## Executive Summary
 
-This project automates the creation of self-contained experiment/feature branches from a shared Python base environment (`00-experiments`), using git worktrees for parallel development. The domain is well-understood: git worktree operations, stdlib file templating, and targeted TOML editing. Every technology choice has been verified against official docs and the live repo — there are no unknowns in the stack. The entire automation is ~8 commands with zero external dependencies.
+Local-first pipeline to mimic DougDoug’s Twitch chat: ingest VODs + chat logs, align transcripts to messages, and fine-tune a chat-capable LLM with PEFT so it runs on consumer GPUs. Experts standardize manifests across ingestion, ASR, alignment, and dataset assembly to keep iterations reproducible and cheap.
 
-The recommended approach is **GSD-inline automation** — no shell scripts, no CLI frameworks, no libraries. The GSD orchestrator executes git commands via subprocess, edits files with `re.sub()` and `string.Template`, and commits. The workflow is: fetch → pre-flight checks → atomic branch+worktree creation → populate README → rename pyproject.toml → `uv sync` → commit. This is a single-invocation flow that produces a ready-to-code worktree.
+Recommended approach: manifest-driven stages (download → demux/VAD → Whisper transcription → drift-corrected alignment → HF dataset) feeding a LoRA/QLoRA fine-tune on a chat-friendly base model, served via vLLM for fast, streaming inference. Guardrails (toxicity/spam filters, rate controls) and evaluation on held-out streams are baked in to prove tone and safety before demos.
 
-The primary risks are operational, not technical: (1) the git worktree + submodule incompatibility bug (mitigated by always branching from `00-experiments` which has no submodules), (2) clobbering user edits on re-run (mitigated by sentinel-based idempotency checks), and (3) the cross-branch root README update (architecturally tricky — defer to a later phase). None of these are blockers; all have clear prevention strategies documented in the research.
+Key risks: timestamp drift between VOD and chat, noisy transcripts, spam-heavy datasets, and train/infer prompt mismatches. Mitigate with per-VOD offset estimation and playback QA, strong Whisper + VAD with audits, spam/toxicity filtering and balanced sampling, strict manifest versioning, and enforcing the same context/prompt format across training and inference.
 
 ## Key Findings
 
 ### Recommended Stack
 
-**Zero dependencies.** Python 3.13 stdlib + git CLI covers everything. No pip/uv installs needed for the automation itself.
+Torch 2.10 + Transformers 4.57 + PEFT/TRl provide the fine-tuning core; vLLM 0.15.1 serves streaming inference with KV-efficient attention. Accelerate/datasets handle device placement and data streaming; flash-attn speeds attention on SM80+ GPUs; faster-whisper supplies local ASR; uv/pre-commit/ruff keep environments reproducible.
 
 **Core technologies:**
-- **`subprocess.run()` + git CLI:** Branch/worktree creation, validation, cleanup — git's porcelain output gives machine-parseable data. GitPython is in maintenance mode and doesn't wrap worktree commands well.
-- **`re.sub()`:** Single-field `pyproject.toml` name replacement — preserves all formatting. tomlkit is overkill; tomli-w destroys formatting on round-trip.
-- **`string.Template.safe_substitute()`:** README placeholder population — `$variable` syntax has zero conflicts with Markdown. Jinja2's `{{ }}` conflicts with code blocks.
-- **`pathlib.Path`:** File I/O — modern, cross-platform, stdlib.
-- **`tomllib`:** Optional post-edit TOML validation (read-only, stdlib since 3.11).
-
-**What NOT to use:** GitPython (maintenance mode), Cookiecutter/Copier (wrong scope), tomli-w for edits (destroys formatting), Click/Typer (GSD is the CLI), pre-commit hooks (wrong trigger).
+- torch 2.10.0: tensor/autograd backbone — broad CUDA support and ecosystem stability.
+- transformers 4.57.6: model/tokenizer pipeline — compatible with vLLM (<5), supports recent chat bases.
+- peft 0.18.1: LoRA/QLoRA adapters — fits 8–13B models on consumer GPUs.
+- trl 0.28.0: chat-focused trainers — simplifies SFT/DPO shaping for Twitch tone.
+- vllm 0.15.1: streaming inference server — fast KV cache/paged attention for chat pacing.
 
 ### Expected Features
 
-**Must have (table stakes):**
-- **T1+T2: Atomic branch + worktree creation** — single `git worktree add -b` command from `00-experiments`
-- **T3: README template on `00-experiments`** — `$placeholder` syntax with sentinel comment for idempotency
-- **T4: README population** — `string.Template.safe_substitute()` with project name, description, branch, date
-- **T5: pyproject.toml name update** — `re.sub()` to replace `"dougpt"` with project name
+Foundational pipeline features: VOD + chat ingestion with timestamps, ASR transcription + alignment, dataset cleaning/pairing, PEFT fine-tuning, held-out evaluation harness, and a local CLI/REST inference interface. Safety/UX layers include guardrails for toxicity/spam and reproducible manifests.
 
-**Should have (promoted differentiators):**
-- **D3: Duplicate branch/worktree detection** — pre-flight `git worktree list --porcelain` check. Prevents confusing git fatal errors.
-- **D2: `uv sync` post-creation** — prevents the most common failure (missing `.venv`, `ModuleNotFoundError` on first use)
+**Must have (table stakes):**
+- VOD + chat ingestion with timestamps — core data source.
+- ASR transcription + audio-chat alignment — provides context mapping.
+- Dataset cleaning and pairing — removes spam/noise before training.
+- Parameter-efficient fine-tuning — produces DougDoug-style model on local GPU.
+- Evaluation harness on held-out clips — gates releases and regressions.
+- Local inference interface (CLI/REST) — delivers offline chat-like replies.
+
+**Should have (competitive):**
+- DougDoug meme/lexicon adaptation — captures recurring bits.
+- Time-synced playback simulator — QA against real chat timelines.
+- Controllable sliders (toxicity/spam/enthusiasm) — tune chaos per session.
+- Guardrails for toxicity/NSFW/spam — safe defaults post-MVP.
 
 **Defer (v2+):**
-- **D1: Root README auto-update** — requires cross-branch editing (master ← feature branch). Architecturally complex. Defer until core flow is validated.
-- **D4: Worktree cleanup commands** — not needed until stale worktrees accumulate (5+ projects)
-- **D5: IDE workspace generation** — low value for single-person workflow
-
-**Anti-features (do NOT build):**
-- Shell script wrappers (GSD IS the automation)
-- GUI/TUI for worktree management
-- Auto-sync between experiment branches
-- Complex branch naming enforcement
-- Template inheritance/composition engine
+- Scene/speaker-aware context selection — complexity; add when scaling.
+- Data augmentation for style robustness — once overfitting appears.
+- Small-model distillation — after strong teacher exists.
+- On-device banword pack — when distributing broadly.
 
 ### Architecture Approach
 
-Five components span two branch families: the Template Skeleton (master), the Base Environment (`00-experiments`), the Branch Lifecycle Manager (GSD workflow — the thing being built), per-branch Project Instances, and the Root README Index (cross-cutting). The critical insight is that master and `00-experiments` have **completely different file trees** — master is scaffolding, `00-experiments` is a standalone Python project root. All project branches must fork from `00-experiments` to inherit the correct environment.
+Layered, manifest-driven pipeline: ingest (VOD/chat/metadata) → media processing (demux/VAD/Whisper, optional diarization) → alignment (offset search + windowing) → dataset assembly/filters → training/eval (tokenizer, PEFT loop, held-out metrics) → inference (context builder, generator, guardrails), with storage/registry for artifacts and configs.
 
 **Major components:**
-1. **Base Environment (`00-experiments`)** — inheritable Python dev environment (pyproject.toml, uv.lock, .python-version). Missing a README template — must be created first.
-2. **Branch Lifecycle Manager (GSD)** — the automation layer. Orchestrates creation, population, and environment setup. Lives in `.planning/` docs, not scripts.
-3. **Project Branch Instance** — self-contained, self-documenting branch with populated README and renamed pyproject.toml. Each is independent after creation.
-4. **Root README Index (master)** — project dashboard. Cross-branch update is architecturally the hardest part — defer.
+1. Ingest (vod_downloader, chat_parser) — fetch and normalize VODs/chat with manifests.
+2. Audio/ASR + alignment (demux, vad, asr, offset_finder, window_builder) — produce timestamped transcripts and drift-corrected pairs.
+3. Dataset/training/inference (build, filters, lora_trainer, eval, generate, guardrails) — assemble HF datasets, fine-tune adapters, and serve guarded chat-style outputs.
 
 ### Critical Pitfalls
 
-1. **Submodules are broken in worktrees** — git officially warns against it. `00-experiments` has no submodules (safe), but never let `.gitmodules` leak into experiment branches. Always branch from `00-experiments`, never from `master`.
-
-2. **Branch locking — same branch can't be in two worktrees** — `git worktree add` will fatal-error if the branch is already checked out elsewhere. Pre-flight check with `git worktree list --porcelain` is mandatory.
-
-3. **Admin dir name ≠ branch name ≠ worktree path** — observable in the live repo right now (`experiments` vs `00-experiments`). Always use porcelain output for lookups, never derive from directory names. Enforce path-basename == branch-name at creation time.
-
-4. **Missing `uv sync` after worktree creation** — worktrees have `pyproject.toml` but no `.venv`. Everything looks ready but imports fail. Confirmed in live repo: the `00-experiments` worktree has no `.venv`.
-
-5. **Template clobber on re-run** — file writes are destructive. Use sentinel markers in README (`<!-- TEMPLATE: REPLACE ME -->`) and check for default `name = "dougpt"` before overwriting pyproject.toml.
+1. **Drifted VOD↔chat timestamps** — derive per-VOD offsets with anchors/cross-correlation; record in manifests; QA via playback.
+2. **Noisy/incorrect transcripts** — use strong Whisper + VAD, domain lexicon, confidence thresholds, and manual audits.
+3. **Spam/emote-dominated dataset** — filter bots/mod commands, cap repeats, balance samples, apply toxicity filters.
+4. **Train/inference context mismatch** — fix one prompt/context window; enforce parity and shadow inference during training.
+5. **Missing provenance/versioning** — version manifests, checksums, ASR model info, and immutable splits.
 
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
 
-### Phase 1: Template Preparation
-**Rationale:** Everything downstream depends on having a proper template README on `00-experiments`. This is the only prerequisite with zero dependencies — and without it, every new branch inherits nothing to populate.
-**Delivers:** A `README.md` template on `00-experiments` with `$placeholder` variables and a sentinel comment. Optionally clean up the inherited `.gitignore` (remove irrelevant `02-worktrees/` rules).
-**Addresses:** T3 (README template)
-**Avoids:** Template clobber pitfall (sentinel enables idempotency from day one)
+### Phase 1: Data Foundation & Alignment
+**Rationale:** Timestamp drift and provenance are the biggest failure modes; fixing early prevents wasted fine-tunes.
+**Delivers:** VOD/chat manifests, demuxed audio, per-VOD offset estimation, alignment QA playback hooks, versioned storage layout.
+**Addresses:** VOD+chat ingestion, reproducible tracking.
+**Avoids:** Drifted timestamps; missing provenance.
 
-### Phase 2: Core Branch Creation Flow
-**Rationale:** This is the primary workflow — the thing that makes the repo useful. It depends on Phase 1 (template exists to be populated). All table-stakes features and promoted differentiators ship here.
-**Delivers:** Complete new-project creation: pre-flight checks → fetch → atomic branch+worktree → README population → pyproject.toml rename → `uv sync` → initial commit.
-**Addresses:** T1, T2, T4, T5, D2, D3
-**Avoids:** Branch locking (D3 pre-flight), race condition (atomic `git worktree add -b`), stale base (fetch before branch), missing venv (D2 `uv sync`), admin dir mismatch (enforce naming)
-**Uses:** `subprocess.run()`, `re.sub()`, `string.Template`, `pathlib.Path`
-**Implements:** Branch Lifecycle Manager component
+### Phase 2: Transcription, Cleaning, and Pairing
+**Rationale:** High-quality transcripts and filtered chat pairs gate model quality; dependent on Phase 1 offsets.
+**Delivers:** Whisper transcripts with confidence, filtered/aligned HF datasets, spam/toxicity reports.
+**Addresses:** ASR transcription + alignment, dataset cleaning/pairing, guardrail-ready filters.
+**Avoids:** Noisy transcripts; spam/emote dominance.
 
-### Phase 3: Root README Index
-**Rationale:** Cross-branch editing (feature branch → master README) is architecturally the trickiest part. Deferring it lets the core flow stabilize first. It's also listed in PROJECT.md requirements, so it can't be skipped forever.
-**Delivers:** Root `README.md` on master updated with new project entry (name, description, worktree path) after each creation.
-**Addresses:** D1 (root README auto-update)
-**Avoids:** Parallel update conflicts (serialize as a separate step), wrong-branch commits (verify root worktree is on master before editing)
+### Phase 3: Fine-Tuning & Evaluation
+**Rationale:** Once data is reliable, adapt the model with PEFT and prove style/safety on held-out streams.
+**Delivers:** PEFT adapters/checkpoints, tokenizer/prompt spec, eval harness with stream-level holdouts, shadow-inference parity checks.
+**Addresses:** Parameter-efficient fine-tuning, evaluation harness, train/infer parity.
+**Avoids:** Overfitting slices; train/infer mismatch.
 
-### Phase 4: Lifecycle Management (optional)
-**Rationale:** Only needed after multiple projects exist. Cleanup, archiving, and status tracking become valuable at 5+ worktrees.
-**Delivers:** Worktree removal (`git worktree remove`), branch cleanup, root README entry removal, stale entry pruning.
-**Addresses:** D4 (worktree cleanup)
-**Avoids:** Accidental `rm -rf` (always use `git worktree remove`), premature prune (use `--dry-run` first)
+### Phase 4: Inference UX & Differentiators
+**Rationale:** Build user-facing pieces after core model is validated; add authenticity and QA tooling.
+**Delivers:** Local CLI/REST server with guardrails, playback simulator, controllable style knobs, meme/lexicon augmentation; optional distillation prep.
+**Addresses:** Local inference interface, guardrails, simulator, controllable sliders, meme adaptation.
+**Avoids:** UX pitfalls (no review UI, no knobs); balances safety vs authenticity.
 
 ### Phase Ordering Rationale
 
-- **Phase 1 → 2 is a hard dependency:** The template must exist on `00-experiments` before any branch inherits it. Creating the template is a one-time setup; the creation flow is the repeating workflow.
-- **Phase 2 is self-contained:** All table-stakes features ship together because they're a single logical operation (~8 commands). Splitting them would leave the workflow incomplete.
-- **Phase 3 is deliberately deferred:** The root README update requires cross-branch editing and has edge cases (root worktree not on master). The core flow works perfectly without it — new branches are self-documenting regardless.
-- **Phase 4 is optional:** Cleanup is a maintenance concern, not a creation concern. Build it when the need arises.
+- Alignment and manifests come first to stop data drift from contaminating all downstream steps.
+- Transcription/cleaning depends on accurate offsets; fine-tuning depends on clean, versioned datasets; UX layers depend on validated models.
+- Ordering directly targets top pitfalls (drift, noisy ASR, spam, provenance, parity) before model/UX work.
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 3 (Root README Index):** Cross-branch commit workflow needs validation. Options A/B/C from ARCHITECTURE.md need a concrete decision. The root worktree may not be on `master` during development — need a fallback strategy.
+- **Phase 2:** Whisper config/lexicon choices and alignment heuristics may need benchmarks on DougDoug clips.
+- **Phase 3:** Base-model selection and PEFT hyperparams vs VRAM budgets; eval metrics for style similarity.
+- **Phase 4:** Distillation target size and style-preservation techniques if low-VRAM support is required.
 
 Phases with standard patterns (skip research-phase):
-- **Phase 1 (Template Preparation):** Straightforward file creation on a branch. No unknowns.
-- **Phase 2 (Core Creation Flow):** All commands verified against live repo and official docs. Patterns are well-documented. The entire flow has been prototyped in research.
-- **Phase 4 (Lifecycle Management):** Standard git operations. Only build when needed.
+- **Phase 1:** Manifest-driven ingestion/alignment patterns are established; needs execution, not novel research.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | **HIGH** | All recommendations verified against official docs, PyPI, and local testing. Zero ambiguity — stdlib-only, no decisions to revisit. |
-| Features | **HIGH** | Requirements directly from PROJECT.md. Feature prioritization validated against architecture constraints and pitfall research. |
-| Architecture | **HIGH** | Based on live codebase analysis. Component boundaries are clear. Only uncertainty is Phase 3 cross-branch update strategy. |
-| Pitfalls | **HIGH** | Top 3 pitfalls verified by direct reproduction in the live repo. Prevention strategies are concrete and tested. |
+| Stack | MEDIUM | PyPI versions verified; fast-moving ML stack may shift. |
+| Features | MEDIUM | Based on common LLM fine-tuning pipelines and Twitch chat needs. |
+| Architecture | MEDIUM | Standard manifest-driven LLM data pipeline; needs validation on DougDoug specifics. |
+| Pitfalls | MEDIUM | Derived from prior VOD/ASR/PEFT experience; project-specific proof pending. |
 
-**Overall confidence:** HIGH
+**Overall confidence:** MEDIUM
 
 ### Gaps to Address
 
-- **Root README update strategy:** ARCHITECTURE.md proposes Option A (GSD switches to master worktree) but this needs validation during Phase 3 planning. What happens when the root worktree is on a non-master branch? Graceful skip? Temporary switch? Separate worktree for master?
-- **Branch naming convention:** PITFALLS.md raises numbered prefix collision. For a personal project this is low risk, but the roadmapper should decide: auto-increment numbers, or let the user pick freely? FEATURES.md anti-feature A4 recommends letting the user pick — that's the right call.
-- **`00-experiments` `.gitignore` cleanup:** Contains `02-worktrees/` rules that are irrelevant on experiment branches. Minor hygiene — include in Phase 1 or ignore.
+- Base model choice (size and license) for best DougDoug fit — benchmark a few chat-friendly models with small DougDoug slices.
+- Style evaluation metrics beyond BLEU/ROUGE — define chat-style similarity heuristics and human review protocol.
+- Data licensing boundaries for VOD/chat use — confirm storage/sharing policy to avoid redistribution issues.
+- Alignment QA UX requirements — decide minimal playback/review tooling scope.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Git worktree official docs (git 2.53.0, 2026-02-02) — worktree operations, submodule warnings, porcelain output, atomic `-b` flag
-- Live repo observation (2026-02-13) — submodule behavior, branch locking, admin dir naming, missing `.venv`, file tree analysis
-- Python 3.13 stdlib docs — `string.Template`, `re`, `tomllib`, `subprocess`, `pathlib`
-- PROJECT.md — first-party requirements
+- PyPI metadata for torch, transformers, peft, trl, vllm, datasets, accelerate, faster-whisper, flash-attn, uv, pre-commit, ruff — version verification.
+- Whisper README — timestamped ASR guidance; sliding window practice.
+- Hugging Face PEFT docs — parameter-efficient fine-tuning patterns.
 
 ### Secondary (MEDIUM confidence)
-- PyPI package analysis — GitPython (maintenance mode confirmed), tomlkit (actively maintained), tomli-w (no format preservation), Jinja2 (overkill verified)
+- Open-source LLM fine-tuning and Twitch chat pipeline patterns (2024–2026) — feature expectations and guardrail practices.
+- Personal/industry experience with VOD alignment, ASR pipelines, and PEFT chat models — pitfalls and mitigations.
 
 ### Tertiary (LOW confidence)
-- IDE worktree indexing behavior — varies by IDE, `.vscode/settings.json` exclusion is a best-guess mitigation
+- Community discussions on Twitch chat exports and Whisper alignment specifics — need DougDoug-specific validation.
 
 ---
-*Research completed: 2026-02-13*
+*Research completed: 2026-02-21*
 *Ready for roadmap: yes*

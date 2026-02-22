@@ -1,380 +1,173 @@
 # Pitfalls Research
 
-**Domain:** Git worktree-based project template workflow
-**Researched:** 2026-02-13
-**Overall confidence:** HIGH (verified against official git docs, observed in live repo)
+**Domain:** Twitch VOD→chat alignment and local LLM fine-tuning (DougDoug)
+**Researched:** 2026-02-21
+**Confidence:** MEDIUM
 
 ## Critical Pitfalls
 
-### Pitfall 1: Submodules Are Broken in Worktrees
+### Pitfall 1: Drifted VOD↔chat timestamps
 
-**What goes wrong:** Git's official documentation explicitly warns: "the support for submodules is incomplete. It is NOT recommended to make multiple checkouts of a superproject." The `01-dev-onboarding` submodule from the `master` branch will not be initialized in worktrees. Worktrees that branch from `00-experiments` (which has no `.gitmodules`) are unaffected today — but if submodule references ever leak into experiment branches, worktrees will break.
+**What goes wrong:** Chat messages lead/lag the audio; paired samples point to the wrong context, training the model to respond to unrelated moments.
 
-**Why it happens:** Submodule metadata lives in `.git/modules/` in the main worktree. Linked worktrees use `.git` *files* (not directories) that point back to the main repo's `$GIT_DIR/worktrees/<name>/`. Git's submodule plumbing doesn't correctly resolve paths across this indirection, so `git submodule init` and `git submodule update` can fail or produce inconsistent state.
+**Why it happens:** VOD downloads start late, chat exports keep absolute timestamps, frame drops/ads create gaps, and a single global offset is assumed without per-VOD calibration.
 
-**Verified evidence:**
-- The `00-experiments` worktree at `02-worktrees/00-experiments/` has no `01-dev-onboarding/` directory (confirmed: "Submodule directory missing or empty in worktree")
-- This is currently benign because `00-experiments` branch has no `.gitmodules` file
-- Official git-worktree docs (git 2.53.0, 2026-02-02): BUGS section explicitly warns against this
+**How to avoid:** Normalize all times to a common epoch; derive per-VOD offsets using anchor events (e.g., “stream starting soon”, loud countdowns); run cross-correlation between message density and audio energy peaks; store the final offset and drift curve with the dataset manifest.
 
-**Consequences:** If automation ever creates branches that include submodule references, `git submodule` commands will fail in those worktrees. Users who `cd` into a worktree and try to use submodule content will find empty directories.
+**Warning signs:** Consistent +/− delay visible when replaying audio with chat; cross-correlation peak far from zero; high rate of “off-topic” responses in eval despite good loss.
 
-**Warning signs:**
-- `.gitmodules` appearing on any experiment/feature branch
-- `git submodule status` returning errors inside a worktree
-- Empty directories where submodule content should be
-
-**Prevention:**
-- Keep `00-experiments` as a clean slate: no `.gitmodules`, no submodule references
-- Automation must never copy `.gitmodules` or submodule directories when branching from `00-experiments`
-- If shared libraries are needed across branches, use a different mechanism (uv dependencies, vendoring, or symlinks)
-- Document this limitation in the worktree README
-
-**Phase to address:** Phase 1 (branch creation automation) — ensure branching logic never inherits submodule state.
-
-**Confidence:** HIGH — verified against official docs and observed in live repo.
+**Phase to address:** Data ingestion & alignment (Phase 1).
 
 ---
 
-### Pitfall 2: Branch Locking — Cannot Check Out Same Branch in Two Worktrees
+### Pitfall 2: Noisy/incorrect transcripts for ASR
 
-**What goes wrong:** Git refuses to check out a branch that's already checked out in another worktree. If automation tries to create a worktree for a branch that's already active somewhere, it will fail with a fatal error.
+**What goes wrong:** Mis-heard words, overlapping speech, and music produce garbled context; fine-tuning learns artifacts instead of DougDoug’s phrasing.
 
-**Why it happens:** Git enforces single-checkout per branch to prevent conflicting index states. Each worktree has its own `HEAD` and `index`, but refs are shared. Two worktrees on the same branch would cause commits in one to silently invalidate the other's working state.
+**Why it happens:** Using a small/fast ASR model, skipping domain vocabulary, no VAD/diarization, and not spot-checking WER on representative clips.
 
-**Verified evidence:**
-```
-$ git worktree add /tmp/test-dup 00-experiments
-fatal: '00-experiments' is already used by worktree at
-'/Users/progressedd/personal-projects/project-template/02-worktrees/00-experiments'
-```
+**How to avoid:** Use a strong Whisper-family model with VAD; add DougDoug-specific lexicon; segment audio around chat windows; reject clips with high WER or low ASR confidence; manually audit random samples each VOD.
 
-**Consequences:** Automation that doesn't check for existing worktrees before creating new ones will fail hard. Users who manually create worktrees before running automation will hit errors.
+**Warning signs:** Transcripts show repeated “music”, “[inaudible]”, or wrong meme phrases; large mismatch between ASR confidence and human perception; training loss low but generated replies ignore audio details.
 
-**Warning signs:**
-- Fatal errors containing "is already used by worktree at"
-- Automation scripts that don't pre-check `git worktree list`
-
-**Prevention:**
-- Before creating a worktree, always run `git worktree list --porcelain` and check if the target branch is already checked out
-- Automation should handle this gracefully: detect existing worktree, report it, and skip or reuse
-- Use `--force` flag only as a deliberate override, never as a default
-
-**Phase to address:** Phase 1 (branch + worktree creation) — build pre-flight checks into automation.
-
-**Confidence:** HIGH — verified by direct test.
+**Phase to address:** Transcription & dataset curation (Phase 2).
 
 ---
 
-### Pitfall 3: Worktree Admin Directory Name ≠ Branch Name ≠ Worktree Path
+### Pitfall 3: Dataset dominated by spam/emote noise
 
-**What goes wrong:** The worktree admin directory (inside `.git/worktrees/`) is named after the *basename of the path* at creation time, not the branch name. If the worktree path basename differs from the branch name, three different names exist for the same worktree, making scripting error-prone.
+**What goes wrong:** The model parrots emote spam, copypasta, or moderation commands instead of varied chat tone.
 
-**Why it happens:** This is observable in the live repo right now:
-- Branch name: `00-experiments`
-- Worktree path: `02-worktrees/00-experiments`
-- Admin directory: `.git/worktrees/experiments` (from original creation path)
+**Why it happens:** Ingesting raw chat without filtering bots, timeouts, mass emotes, or repeated copypasta; no per-user rate limits; imbalance across streams.
 
-The admin dir was named `experiments` because the worktree was originally created at a path ending in `experiments`, then later moved/renamed to `00-experiments` and repaired.
+**How to avoid:** Filter moderation commands and bot usernames; cap identical message repeats per window; down-weight pure emote lines; enforce per-stream sampling balance; include toxicity/profanity screening aligned to guardrails.
 
-**Consequences:** Scripts that assume admin-dir-name == branch-name will break. Scripts that derive branch name from path basename will be wrong if the worktree was moved. Cleanup scripts that scan `.git/worktrees/` won't match expected names.
+**Warning signs:** Token frequency spikes for single emotes; eval generations collapse to emote-only replies; entropy of responses drops over training.
 
-**Warning signs:**
-- Automation that assumes any two of these three names are the same
-- Worktree listing showing unexpected admin directory names
-- `git worktree repair` needed after manual path changes
-
-**Prevention:**
-- Always use `git worktree list --porcelain` to discover worktree-to-branch mappings — never derive from directory names
-- Automation should create worktrees where path basename matches branch name exactly: `git worktree add 02-worktrees/XX-name -b XX-name 00-experiments`
-- Establish a naming convention: branch name `XX-project-name`, worktree path `02-worktrees/XX-project-name` — keep them identical
-- Never manually move/rename worktree directories; use `git worktree move` instead
-
-**Phase to address:** Phase 1 (worktree creation) — enforce naming consistency from the start.
-
-**Confidence:** HIGH — observed directly in live repo.
-
-## Common Mistakes
-
-### Mistake 1: Forgetting `uv sync` After Worktree Creation
-
-**What goes wrong:** New worktrees from `00-experiments` have `pyproject.toml` and `uv.lock` but no `.venv`. The project appears ready but `python` and `import` statements fail because dependencies aren't installed.
-
-**Why it happens:** `git worktree add` checks out files but doesn't run post-checkout hooks or package manager commands. Each worktree needs its own `.venv` directory (correctly gitignored), but nothing triggers its creation.
-
-**Verified evidence:** The `00-experiments` worktree at `02-worktrees/00-experiments/` has no `.venv` directory.
-
-**Warning signs:**
-- `ModuleNotFoundError` immediately after starting work in a new worktree
-- No `.venv` directory in the worktree root
-
-**Prevention:**
-- Automation must run `uv sync` as a post-worktree-creation step
-- Or: use a git `post-checkout` hook that detects worktree creation and runs `uv sync`
-- Document the setup step in the worktree README
-
-**Phase to address:** Phase 1 (worktree setup automation) — include `uv sync` in the creation flow.
-
-**Confidence:** HIGH — verified by inspecting live worktree.
+**Phase to address:** Dataset cleaning & balance (Phase 2).
 
 ---
 
-### Mistake 2: Stash Is Shared Across All Worktrees
+### Pitfall 4: Train/inference context mismatch
 
-**What goes wrong:** `git stash` in one worktree is visible in all other worktrees. A user stashes in worktree A, then runs `git stash pop` in worktree B, applying unrelated changes to the wrong branch.
+**What goes wrong:** The fine-tuned model expects longer or richer context than provided at inference, producing off-topic or generic replies.
 
-**Why it happens:** Stash is stored in `refs/stash` which is in the shared `$GIT_COMMON_DIR`. It's not per-worktree state.
+**Why it happens:** Training pairs include multi-minute transcripts, but the inference path supplies only short windows or audio embeddings; prompt formats differ between training and runtime.
 
-**Warning signs:**
-- Unexpected changes after `git stash pop`
-- Stash list showing entries from other worktrees/branches
+**How to avoid:** Fix a standard context window (e.g., last N seconds transcript + recent chat) and use it identically in training and inference; freeze a single prompt template; run shadow inference during training to confirm parity.
 
-**Prevention:**
-- Avoid `git stash` in a multi-worktree workflow — it's rarely needed since each worktree is its own branch
-- If stashing is needed, use named stashes: `git stash push -m "worktree-XX: description"`
-- Document this gotcha for users
+**Warning signs:** Offline eval good when using training prompt, but live inference degrades; models hallucinate missing context; large prompt-engineering changes needed after training.
 
-**Phase to address:** Documentation phase — mention in worktree README.
-
-**Confidence:** HIGH — this is documented git behavior.
+**Phase to address:** Prompting & model integration (Phase 3).
 
 ---
 
-### Mistake 3: Running `git` Commands From the Wrong Directory
+### Pitfall 5: No data provenance or versioning
 
-**What goes wrong:** Running `git` commands from the main worktree (repo root) affects the main worktree's branch, not the experiment branch. Users who are accustomed to a single-worktree workflow forget that `git commit` in the root commits to `master`/`vibe-coding-gsd`, not to their experiment.
+**What goes wrong:** Mixing datasets with different offsets/filters; inability to reproduce a training run or trace bad generations back to source clips.
 
-**Why it happens:** Each worktree has its own `HEAD`, `index`, and working tree. Git determines which worktree you're operating on by your current working directory.
+**Why it happens:** One-off scripts, overwritten exports, and absent manifests for audio, transcripts, and filters.
 
-**Warning signs:**
-- Commits appearing on the wrong branch
-- Files staged in one worktree showing up in `git status` of the root
+**How to avoid:** Version manifests with checksums and offsets per VOD; keep raw, aligned, and filtered splits; log filter parameters and ASR model version; store train/eval splits immutably.
 
-**Prevention:**
-- Automation should `cd` into the worktree directory before performing git operations
-- Scripts should use `git -C <worktree-path>` to explicitly target the correct worktree
-- Consider adding the branch name to the shell prompt (most shells already do this)
+**Warning signs:** Two runs on “same” data yield different sample counts; unclear which ASR model produced current transcripts; bug fixes require reprocessing everything from scratch.
 
-**Phase to address:** Phase 1 (automation) — all automated git commands must use explicit `-C` paths.
-
-**Confidence:** HIGH — fundamental git behavior.
-
-## Git Worktree Gotchas
-
-### Gotcha 1: Hooks Are Shared, Not Per-Worktree
-
-**What goes wrong:** Git hooks (`.git/hooks/`) are in the shared `$GIT_COMMON_DIR`. A pre-commit hook installed in the main worktree fires for commits in all worktrees. If hooks assume paths or branch names specific to the main worktree, they'll produce wrong results or errors in linked worktrees.
-
-**Why it happens:** Hooks live at `.git/hooks/`, which is in the shared common directory. There's no per-worktree hooks directory by default.
-
-**Prevention:**
-- Any hooks must be worktree-aware: use `git rev-parse --show-toplevel` not hardcoded paths
-- If worktree-specific hooks are needed, use `core.hooksPath` with `extensions.worktreeConfig`
-- For this project: hooks are currently sample-only (no custom hooks), so this is a future concern
-
-**Phase to address:** Future phases if hooks are added.
-
-**Confidence:** HIGH — verified by inspecting `.git/hooks/` (contains only `.sample` files).
+**Phase to address:** Data engineering foundation (Phase 1).
 
 ---
 
-### Gotcha 2: `.gitignore` Rules for `02-worktrees/` Are Inherited but Irrelevant on Branches
+### Pitfall 6: Overfitting small slices of streams
 
-**What goes wrong:** The `00-experiments` branch's `.gitignore` includes rules for `02-worktrees/*`. When a new branch is created from `00-experiments` and checked out as a worktree inside `02-worktrees/`, that `.gitignore` rule references a directory (`02-worktrees/`) that doesn't exist relative to the worktree root. This is benign but confusing — the rule silently does nothing.
+**What goes wrong:** Model memorizes specific bits and loses general DougDoug chat style; eval looks good on nearby clips but fails on other streams.
 
-**Why it happens:** Branch content is inherited verbatim from `00-experiments`. The `.gitignore` was written for the repo root context, not the worktree context.
+**Why it happens:** Limited curated data, no stream-level cross-validation, and too many training epochs/low regularization on parameter-efficient fine-tunes.
 
-**Prevention:**
-- Clean up the `.gitignore` on `00-experiments` to remove `02-worktrees/` rules — they're only relevant on `master`
-- Or: accept the noise and document that these rules are inherited but inactive on worktree branches
-- If cleaning up: do it as part of the template README creation phase since `.gitignore` is being touched anyway
+**How to avoid:** Use stream-level holdouts; early-stop on held-out VODs; apply dropout/weight decay appropriate for LoRA; augment with slight timing jitter to avoid memorizing exact windows.
 
-**Phase to address:** Phase 1 (template preparation on `00-experiments`).
+**Warning signs:** Sharp train/val loss gap; responses quote exact phrases from training clips; quality craters on unseen streams.
 
-**Confidence:** HIGH — verified by reading the `.gitignore` file on the `00-experiments` branch.
+**Phase to address:** Fine-tuning & evaluation (Phase 3).
 
----
+## Technical Debt Patterns
 
-### Gotcha 3: `git worktree prune` Can Delete Worktrees You're Using
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Hard-coded global time offset per VOD | Quick alignment proof-of-concept | Misaligned pairs when drift/ads occur; hard to fix downstream | MVP only with manual spot-checks |
+| Keeping only processed transcripts (no raw audio slices) | Saves disk space | Cannot re-run better ASR or filters; irreproducible | Never; store at least compressed raw clips |
+| Training without dataset manifests | Faster iteration | Impossible to trace bad samples; inconsistent eval splits | Never |
+| Single-stage script for download→ASR→align | One command convenience | Any failure requires rerunning all stages; no caching | Acceptable for first VOD, replace with staged pipeline after |
+| Ignoring speaker diarization | Faster ASR | Chat replies tied to wrong speaker/context in multi-voice segments | Only if clips are strictly single speaker |
 
-**What goes wrong:** If a worktree directory is deleted manually (e.g., `rm -rf 02-worktrees/XX-name`) without running `git worktree remove`, the admin entries in `.git/worktrees/` become stale. Running `git worktree prune` then cleans up those admin entries — but if the directory was only temporarily unmounted or inaccessible, the metadata is lost.
+## Integration Gotchas
 
-**Why it happens:** Git can't distinguish between "intentionally deleted" and "temporarily unavailable."
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| Twitch chat exports | Assuming timestamps are relative to VOD start | Normalize to UTC epoch and compute offset to actual VOD start; record offset |
+| VOD downloads (ffmpeg/TwitchDownloader) | Losing exact start time/ads trimmed differently than chat | Preserve original duration metadata; note trims; avoid auto-trim that desyncs chat |
+| ASR (Whisper-family) | Running without VAD/diarization on long streams | Apply VAD + chunking; diarize if guests appear; batch by segment to keep timestamps stable |
+| Dataset storage | Storing paths without checksums | Record checksums and byte ranges; keep manifests versioned |
+| PEFT fine-tuning (LoRA/QLoRA) | Mismatched quantization vs adapter config | Keep consistent base quantization during train/infer; export adapters with config tracked |
 
-**Prevention:**
-- Always use `git worktree remove` instead of `rm -rf` for cleanup
-- Use `git worktree lock` for worktrees on removable storage
-- Automation cleanup should use `git worktree remove <path>` not filesystem deletion
-- Run `git worktree prune --dry-run` before `git worktree prune` to see what would be removed
+## Performance Traps
 
-**Phase to address:** Phase 3 (cleanup/lifecycle automation, if implemented).
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| Re-encoding full VODs for every stage | Long preprocessing times; disk churn | Cache extracted audio and transcripts; stage pipeline with idempotent steps | Breaks once >5 VODs processed |
+| Huge context windows during training | OOM on consumer GPU; slow epochs | Cap tokens per sample; slide windows with overlap; use gradient accumulation judiciously | Breaks around 2–4K tokens on 12–24GB GPUs |
+| Unsharded datasets | Single worker bottleneck; no resume | Shard by VOD and stream through dataloader; checkpoint progress | Breaks when adding more than a few hours of data |
+| No mixed precision in ASR and training | Slow throughput | Use fp16/bf16 where supported; benchmark for quality impact | Breaks time budget on long VODs |
 
-**Confidence:** HIGH — documented in official git docs.
+## Security Mistakes
 
----
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| Keeping OAuth/Twitch tokens in scripts | Token leakage, unauthorized access | Use env vars/secrets files excluded from repo; rotate tokens |
+| Publishing chat logs with usernames intact | Privacy concerns and potential TOS issues | Anonymize or hash usernames in shared artifacts; keep raw logs private |
+| Shipping VOD excerpts without license notes | Reuse beyond fair-use-like bounds | Store usage notes with datasets; avoid redistribution; limit to internal use |
 
-### Gotcha 4: Worktree Inside the Main Repo Tree Creates Filesystem Nesting
+## UX Pitfalls
 
-**What goes wrong:** The `02-worktrees/` directory is inside the main repo's working tree. This means worktree checkouts are nested within the repo's filesystem. Although the contents are gitignored, tools like IDE file watchers, `find` commands, and backup systems will traverse into these directories, leading to:
-- IDE indexing all worktree files as part of the main project
-- Slow file searches that recurse into worktree directories
-- Backup/sync tools doubling the effective repo size
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| No alignment QA UI (audio+chat playback) | Hidden offsets until training fails | Build a lightweight reviewer to scrub through aligned segments and flag offsets |
+| Lack of controllable chat style knobs | Hard to adjust tone away from spam/toxicity | Expose temperature and filtering presets; allow toggling emote density |
+| Missing eval visualizations | Stakeholders cannot tell if model matches chat timing | Show side-by-side audio timeline, gold chat, and model outputs for held-out clips |
 
-**Why it happens:** Worktrees inside the repo tree are convenient for organization but create filesystem nesting. The git-worktree docs show examples with worktrees *outside* the repo tree (e.g., `../hotfix`).
+## "Looks Done But Isn't" Checklist
 
-**Prevention:**
-- Add `02-worktrees/` to IDE exclude/ignore settings (`.vscode/settings.json` → `files.exclude`)
-- This is already partially handled by `.gitignore`, but IDEs don't always respect `.gitignore` for indexing
-- Accept this tradeoff — the organizational benefit of keeping worktrees in `02-worktrees/` outweighs the minor IDE config needed
-- Consider adding an `.editorconfig` or workspace settings file
+- [ ] **Alignment verified per VOD:** Anchor events checked; offset/drift recorded.
+- [ ] **ASR quality sampled:** Manual audit of random clips; confidence thresholds enforced.
+- [ ] **Spam/toxicity filtered:** Emote spam capped; bots/mod commands removed; toxicity pass applied.
+- [ ] **Manifest versioned:** Offsets, ASR model, filters, and splits recorded.
+- [ ] **Train/infer parity tested:** Shadow inference uses same prompt/context as training.
+- [ ] **Holdout eval ready:** Stream-level holdouts defined with metrics.
 
-**Phase to address:** Phase 1 (workspace setup) — add IDE exclusion config.
+## Recovery Strategies
 
-**Confidence:** MEDIUM — based on general IDE behavior; specific IDE behavior varies.
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Drifted timestamps | MEDIUM | Recompute offsets with anchors; regenerate pairs; retrain on corrected dataset |
+| Noisy transcripts | MEDIUM | Re-run ASR with better model/VAD; replace low-confidence segments; partial fine-tune refresh |
+| Spam-dominated dataset | LOW | Refilter dataset with stricter rules; rebalance samples; light adapter retrain |
+| Train/infer mismatch | LOW | Standardize prompt/context; regenerate training pairs; short adapter refresh |
+| Missing provenance | HIGH | Reprocess from raw VOD/chat; recreate manifests; rerun training |
 
-## Automation Risks
+## Pitfall-to-Phase Mapping
 
-### Risk 1: Race Condition Between Branch Creation and Worktree Add
-
-**What goes wrong:** If automation creates a branch (`git branch XX-name 00-experiments`) as a separate step from worktree creation (`git worktree add 02-worktrees/XX-name XX-name`), a failure between the two steps leaves a branch with no worktree. Re-running automation may fail because the branch already exists.
-
-**Why it happens:** Two-step process without transactional guarantees.
-
-**Prevention:**
-- Use the atomic form: `git worktree add -b XX-name 02-worktrees/XX-name 00-experiments`
-- This creates the branch and worktree in a single command — if it fails, neither is created
-- Automation should still handle the "branch already exists" case by offering to attach an existing branch to a new worktree
-
-**Phase to address:** Phase 1 (core automation) — use atomic `worktree add -b` command.
-
-**Confidence:** HIGH — verified from official docs; `-b` flag creates branch and worktree atomically.
-
----
-
-### Risk 2: Template File Replacement Clobbers User Work
-
-**What goes wrong:** If automation updates `README.md` or `pyproject.toml` after the user has already started editing them, user work is lost. This can happen if:
-- Automation runs twice (e.g., retry after partial failure)
-- Automation runs on an existing branch/worktree instead of a fresh one
-- User creates branch manually, starts working, then runs automation
-
-**Why it happens:** File templating logic uses write-all semantics, not merge semantics.
-
-**Prevention:**
-- Automation should check if files already have custom content before overwriting
-- Use a sentinel marker (e.g., `<!-- TEMPLATE: REPLACE ME -->`) in the template README — automation only replaces if the sentinel is present
-- For `pyproject.toml`: check if `name` is still the default `"dougpt"` before updating
-- Always create a fresh branch + worktree before templating; never template an existing branch
-
-**Phase to address:** Phase 2 (file templating) — implement idempotency checks.
-
-**Confidence:** HIGH — logical consequence of write-all file operations.
-
----
-
-### Risk 3: Root README Update Conflicts Across Simultaneous Worktrees
-
-**What goes wrong:** Multiple worktree creation sessions running in parallel could both try to update the root `README.md` to reference their new branch. Since the root README is on the `master` branch (main worktree), this creates a merge conflict or last-writer-wins situation.
-
-**Why it happens:** The root README is a shared resource on the main worktree. Parallel automation sessions all target the same file.
-
-**Prevention:**
-- Make root README updates a manual or queued step, not part of the atomic worktree creation
-- Or: use a lockfile mechanism to serialize root README updates
-- Or: generate the root README dynamically from `git worktree list` + `git branch` output, rather than maintaining it manually
-- Simplest: accept that root README updates are a separate, infrequent step
-
-**Phase to address:** Phase 3 (root README update) — design for non-conflicting updates.
-
-**Confidence:** MEDIUM — only relevant if parallel automation is used; unlikely for a personal project but worth designing for.
-
----
-
-### Risk 4: Automation Assumes `00-experiments` Is Up-to-Date
-
-**What goes wrong:** If automation branches from the local `00-experiments` ref without fetching, new branches miss upstream changes. The local `00-experiments` branch may be behind `origin/00-experiments`.
-
-**Why it happens:** `git worktree add -b XX-name 02-worktrees/XX-name 00-experiments` uses the local ref, not the remote.
-
-**Prevention:**
-- Automation should fetch before branching: `git fetch origin 00-experiments`
-- Then branch from the fetched ref: `git worktree add -b XX-name 02-worktrees/XX-name origin/00-experiments`
-- Or: fast-forward the local branch first: `git branch -f 00-experiments origin/00-experiments` (only safe if `00-experiments` worktree isn't active or has no uncommitted changes)
-- Simplest for single-user: fetch + branch from `origin/00-experiments`
-
-**Phase to address:** Phase 1 (branch creation) — include fetch step.
-
-**Confidence:** HIGH — standard git behavior.
-
----
-
-### Risk 5: Numbered Prefix Convention Requires Manual Coordination
-
-**What goes wrong:** The `XX-project-name` naming convention requires choosing a number that doesn't collide with existing branches. If automation auto-assigns numbers, two users (or two automation runs) could pick the same number. If users pick manually, they may not know which numbers are taken.
-
-**Why it happens:** No single source of truth for "next available number." Branch listing requires scanning and parsing.
-
-**Prevention:**
-- Automation should scan existing branches matching `^\d{2}-` and auto-increment
-- Use `git branch --list '[0-9][0-9]-*'` to find existing numbered branches
-- Reserve `00-` for template/shared branches, start user projects at a higher range (e.g., `10-`, `20-`)
-- For a personal project, sequential numbering is fine; for teams, use timestamps or UUIDs instead
-
-**Phase to address:** Phase 1 (branch naming logic).
-
-**Confidence:** MEDIUM — depends on usage patterns; personal project mitigates collision risk.
-
-## Prevention Strategies
-
-| Pitfall | Prevention Strategy | Implementation |
-|---------|---------------------|----------------|
-| Submodules in worktrees | Keep `00-experiments` submodule-free | Validate on branch creation |
-| Branch already checked out | Pre-check `git worktree list --porcelain` | Add to automation pre-flight |
-| Name mismatch (admin/branch/path) | Use `git worktree add -b NAME path/NAME base` | Enforce in automation |
-| Missing `uv sync` | Run `uv sync` post-worktree-add | Add to automation flow |
-| Shared stash confusion | Document; avoid stash in multi-worktree | Add to worktree README |
-| Wrong directory for git commands | Use `git -C <path>` in automation | Enforce in all scripts |
-| Shared hooks | Make hooks worktree-aware | Audit if hooks are added |
-| Irrelevant `.gitignore` rules | Clean `02-worktrees/` rules from experiment branches | Phase 1 template prep |
-| Accidental worktree prune | Use `git worktree remove`, never `rm -rf` | Automation cleanup |
-| IDE indexing worktree dirs | Add IDE exclude config | Workspace settings |
-| Race condition (branch + worktree) | Use atomic `git worktree add -b` | Single-command creation |
-| Template clobber | Check for sentinel/default values before overwriting | Idempotency guard |
-| Root README conflicts | Generate dynamically or serialize updates | Design for concurrency |
-| Stale `00-experiments` base | Fetch before branching | Pre-flight fetch |
-| Number collision | Auto-scan + increment numbered branches | Branch naming logic |
-
-## Phase-Specific Warnings
-
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| Branch creation | Race condition between `git branch` and `git worktree add` | Use atomic `git worktree add -b` |
-| Branch creation | Branch already checked out in existing worktree | Pre-check with `git worktree list --porcelain` |
-| Branch creation | Stale base branch | Fetch `origin/00-experiments` before branching |
-| Worktree setup | Missing `.venv` / dependencies not installed | Run `uv sync` as post-creation step |
-| Worktree setup | Admin dir name ≠ branch name | Enforce path-basename == branch-name convention |
-| File templating (README) | Clobber existing user content on re-run | Sentinel-based idempotency check |
-| File templating (pyproject.toml) | Clobber custom project name | Check for default value before replacing |
-| Root README update | Parallel update conflicts | Serialize or generate dynamically |
-| Cleanup/teardown | Manual `rm -rf` leaves stale admin entries | Always use `git worktree remove` |
-| Cleanup/teardown | Deleting branch before removing worktree | Remove worktree first, then delete branch |
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| Drifted VOD↔chat timestamps | Phase 1: Data ingestion & alignment | Spot-check playback; stored offsets per VOD |
+| Noisy/incorrect transcripts | Phase 2: Transcription & curation | WER/confidence sampling; manual audits |
+| Spam/emote noise dominance | Phase 2: Dataset cleaning & balance | Token frequency checks; toxicity filter reports |
+| Train/inference context mismatch | Phase 3: Prompting & integration | Shadow inference parity tests |
+| No data provenance/versioning | Phase 1: Data engineering foundation | Manifests with checksums; reproducible splits |
+| Overfitting small slices | Phase 3: Fine-tuning & eval | Stream-level holdout metrics; generalization tests |
 
 ## Sources
 
-- [git-worktree official docs (git 2.53.0, 2026-02-02)](https://git-scm.com/docs/git-worktree) — HIGH confidence
-  - BUGS section: "support for submodules is incomplete. It is NOT recommended to make multiple checkouts of a superproject."
-  - REFS section: stash and most refs are shared; HEAD/index are per-worktree
-  - CONFIGURATION FILE section: `extensions.worktreeConfig` for per-worktree config
-  - DETAILS section: admin directory naming from path basename
-- Live repo observation (2026-02-13) — HIGH confidence
-  - Submodule missing in worktree: confirmed
-  - Branch lock error: reproduced
-  - Admin dir naming mismatch: observed (`experiments` vs `00-experiments`)
-  - No `.venv` in worktree: confirmed
-- Git local config inspection — HIGH confidence
-  - `submodule.01-dev-onboarding.active=true` in shared config
-  - No `extensions.worktreeConfig` enabled
+- Personal experience with VOD alignment, ASR pipelines, and PEFT fine-tuning for chat-like models (needs validation for DougDoug-specific data).
+- Community discussions on Twitch chat exports and Whisper alignment practices (LOW confidence until project-specific validation).
 
 ---
-
-*Pitfalls research: 2026-02-13*
+*Pitfalls research for: Twitch VOD→chat alignment and local LLM fine-tuning*
+*Researched: 2026-02-21*

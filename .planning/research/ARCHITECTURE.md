@@ -1,345 +1,265 @@
 # Architecture Research
 
-**Domain:** Git worktree-based project template workflow automation
-**Researched:** 2026-02-13
-**Confidence:** HIGH (based on existing codebase analysis + official git docs)
+**Domain:** Local LLM fine-tuning from DougDoug VODs + Twitch chat
+**Researched:** 2026-02-21
+**Confidence:** MEDIUM
 
-## Component Overview
+## Standard Architecture
 
-The system has **5 distinct components** that operate across two git branch families (template branches on `master`, project branches off `00-experiments`).
+### System Overview
 
-### Component 1: Template Skeleton (master branch)
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Data Ingestion Layer                    │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────┐  ┌────────────┐  ┌─────────────┐               │
+│  │ VOD DL │  │ Chat Import │  │ Metadata ETL│               │
+│  └────┬────┘  └─────┬──────┘  └──────┬──────┘               │
+│       │             │              │                        │
+├───────┴─────────────┴──────────────┴────────────────────────┤
+│               Media & Transcript Processing Layer            │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────┐  ┌──────────┐  ┌────────────┐  ┌───────────┐  │
+│  │ Demux/VAD│  │ ASR (Wh.)│  │ Diarization│  │ Alignment │  │
+│  └────┬─────┘  └────┬─────┘  └────┬───────┘  └─────┬─────┘  │
+│       │             │             │               │         │
+├───────┴─────────────┴─────────────┴───────────────┴─────────┤
+│                  Dataset Assembly & QA Layer                │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────┐  ┌─────────────┐  ┌──────────────┐             │
+│  │ Window  │  │ Toxicity/QA │  │ HF Dataset   │             │
+│  └────┬────┘  └──────┬──────┘  └──────┬───────┘             │
+│       │              │               │                      │
+├───────┴──────────────┴───────────────┴──────────────────────┤
+│                Training & Evaluation Layer                  │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐         │
+│  │ Tokenizer   │  │ PEFT FineTune│  │ Eval Harness │         │
+│  └────┬────────┘  └──────┬───────┘  └──────┬──────┘         │
+│       │                 │                │                 │
+├───────┴─────────────────┴────────────────┴─────────────────┤
+│                     Inference & Serving                     │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────┐  ┌───────────────┐  ┌──────────────┐          │
+│  │ Context  │  │ Chat Generator │  │ Guardrails  │          │
+│  └──────────┘  └──────┬────────┘  └──────────────┘          │
+│                       │                                     │
+└───────────────────────┴─────────────────────────────────────┘
+```
 
-**Responsibility:** Provides the organizational structure — numbered directories, dev logs, supporting files, worktree container, submodule references.
+### Component Responsibilities
 
-**What it owns:**
-- `00-dev-log/` — log templates
-- `00-supporting-files/` — shared data/env templates
-- `01-dev-onboarding/` — submodule pointer
-- `02-worktrees/` — worktree container directory + README
-- `.foam/` — note templates
-- Root `README.md` — repo overview, active branches index
-- `.gitignore` — Python-focused, includes `02-worktrees/*` exclusion
+| Component | Responsibility | Typical Implementation |
+|-----------|----------------|------------------------|
+| VOD downloader | Fetch raw VOD video and associated metadata to local storage | `yt-dlp`/Twitch API + checksum + manifest |
+| Chat import | Export chat logs with message timestamps, user IDs, badges | Twitch chat export, JSONL normalization |
+| Demux/VAD | Extract audio, normalize loudness, trim silence, split by speech | `ffmpeg` + WebRTC VAD + segment manifest |
+| ASR | Transcribe audio with token-level timestamps | Whisper CLI/Python (`transcribe` sliding windows) |
+| Diarization (optional) | Identify speaker turns to mask streamer vs chat TTS | `pyannote.audio` diarization pipeline |
+| Alignment | Align chat messages to transcript windows; handle drift/offsets | Heuristic offset search + dynamic windowing; store offsets per segment |
+| Dataset assembly | Build supervised pairs (audio context or transcript + prior chat → next chat message) | HF `datasets` builder with schema and dataset card |
+| Quality gates | Filter toxicity/spam, drop low-ASR-confidence spans | Detoxify/regex filters + ASR logprob thresholds |
+| Tokenizer & formatting | Format chat style prompts, insert metadata tokens, pad/truncate | HF `transformers` tokenizer with special tokens |
+| Fine-tuning | Parameter-efficient SFT (LoRA/QLoRA) on local causal LM | HF `transformers` + `peft` training loop |
+| Eval harness | Held-out segments + toxicity/fluency metrics; regression suite | Scripted eval with BLEU/ROUGE + heuristic repetition checks |
+| Inference pipeline | Consume recent audio/transcript context, generate chat-like replies | Sliding context window + greedy/sampling decoding |
+| Guardrails | Block banned words/spam, limit repetition and rate | Regex lists, similarity checks, max responses/min timeout |
+| Storage | Persist raw media, transcripts, aligned pairs, checkpoints | Local object store (filesystem/LMDB) with versioned manifests |
 
-**Key constraint:** This branch never contains application code. It's pure scaffolding.
+## Recommended Project Structure
 
-### Component 2: Base Environment (00-experiments branch)
+```
+src/
+├── ingest/                 # VOD downloaders, chat importers, manifests
+│   ├── twitch_api.py       # Twitch/VOD metadata fetching
+│   ├── vod_downloader.py   # yt-dlp/ffmpeg wrappers
+│   └── chat_parser.py      # Parse/export chat logs → JSONL
+├── audio/                  # Media prep and transcription
+│   ├── demux.py            # ffmpeg demux + loudness normalize
+│   ├── vad.py              # VAD-based segmenter
+│   ├── asr.py              # Whisper transcription + timestamps
+│   └── diarize.py          # Optional speaker diarization
+├── alignment/              # Time alignment and pairing
+│   ├── offset_finder.py    # Drift estimation between chat and audio
+│   ├── window_builder.py   # Build context windows around messages
+│   └── align_manifest.py   # Persist alignment metadata
+├── dataset/                # Dataset assembly and quality filters
+│   ├── schema.py           # HF dataset schema + features
+│   ├── build.py            # Create train/val/test splits
+│   └── filters.py          # Toxicity/quality filters
+├── training/               # Fine-tuning and evaluation
+│   ├── tokenizer.py        # Special tokens, formatting
+│   ├── lora_trainer.py     # PEFT/QLoRA training loop
+│   ├── eval.py             # Held-out eval + metrics
+│   └── config/             # YAML configs per run
+├── inference/              # Local inference pipeline
+│   ├── context_builder.py  # Recent audio/transcript windowing
+│   ├── generate.py         # Chat-style decoding + sampling
+│   └── guardrails.py       # Safety/rate controls
+├── storage/                # Paths and manifest management
+│   ├── layout.py           # Directory conventions
+│   └── registry.py         # Versioned artifacts, checksums
+└── cli/                    # Entry points for jobs
+    └── main.py
+```
 
-**Responsibility:** Provides the inheritable Python development environment that all new project branches start from.
+### Structure Rationale
 
-**What it owns:**
-- `pyproject.toml` — project metadata + dependencies (currently: `name = "dougpt"`, Python >=3.13, ipykernel, openai, python-dotenv)
-- `uv.lock` — locked dependency resolution
-- `.python-version` — pins Python 3.13
-- `sandbox.ipynb` — starter notebook
-- `.gitignore` — same comprehensive Python gitignore (includes worktree rules)
+- **ingest/**: Isolate Twitch/VOD dependencies; produces stable manifests that downstream steps consume.
+- **audio/**: Groups expensive media transforms; enables reuse of transcripts across experiments.
+- **alignment/**: Keeps drift-handling logic separate to iterate independently from ASR.
+- **dataset/**: Centralizes schema, filters, and split logic to avoid leakage and reproducibility issues.
+- **training/**: Encapsulates PEFT configs and eval so model iterations do not affect ingestion.
+- **inference/**: Thin layer to adapt trained checkpoints into local chat-like responders with guardrails.
+- **storage/**: Single source of truth for file layout and checksums to prevent path drift.
 
-**Key constraint:** This branch has a completely different file tree from `master` — no numbered directories, no template structure. It's a standalone Python project root.
+## Architectural Patterns
 
-**Missing (per PROJECT.md):** No `README.md` exists yet. The `pyproject.toml` references one (`readme = "README.md"`) but the file hasn't been created.
+### Pattern 1: Manifest-driven pipeline
 
-### Component 3: Branch Lifecycle Manager (GSD workflow automation)
+**What:** Each stage writes a manifest (JSON/YAML) describing inputs, outputs, timestamps, offsets, and checksums.
+**When to use:** Anytime data volumes are moderate and steps may be rerun; enables incremental recompute and auditing.
+**Trade-offs:** Requires discipline to version manifests; slight overhead to maintain.
 
-**Responsibility:** Orchestrates the creation and setup of new project branches. This is the automation layer that doesn't exist yet — it's the core of what needs to be built.
+**Example:**
+```python
+manifest = {
+    "vod_id": vod_id,
+    "audio_path": audio_path,
+    "segments": segments,  # start/end, asr_confidence
+    "chat_offset_sec": best_offset,
+    "dataset_version": dataset_version,
+}
+write_json(manifest_path, manifest)
+```
 
-**What it must do (per PROJECT.md requirements):**
-1. Create a new branch from `00-experiments`
-2. Create a worktree in `02-worktrees/<branch-name>`
-3. Populate the branch's `README.md` with project context
-4. Update `pyproject.toml` project name to match the experiment/feature
-5. Update root repo `README.md` to reference active branches
+### Pattern 2: Sliding-window alignment
 
-**Where it lives:** GSD workflow instructions (AI-executed), not standalone scripts. The GSD system reads `PROJECT.md` and `.planning/` context to know what to do. No shell scripts are needed because the AI orchestrator IS the automation.
+**What:** Use sliding transcript windows with candidate time offsets to pair chat messages to nearby audio text.
+**When to use:** When chat timestamps drift relative to VOD timecodes or start late/early.
+**Trade-offs:** Heuristic; needs evaluation to avoid mislabeling. Adds compute proportional to offset search space.
 
-### Component 4: Project Branch Instance (per-branch)
+**Example:**
+```python
+def align_message(msg_ts, transcript, offsets=(-10, 10), window=15):
+    candidates = []
+    for o in offsets:
+        window_ts = (msg_ts + o, msg_ts + o + window)
+        text = transcript.slice(window_ts)
+        score = keyword_overlap(msg.text, text)
+        candidates.append((score, o, text))
+    return max(candidates)
+```
 
-**Responsibility:** A self-contained, self-documenting project that inherits from `00-experiments` and adds its own code, deps, and docs.
+### Pattern 3: Parameter-efficient fine-tuning (PEFT)
 
-**What each instance owns:**
-- `README.md` — project-specific description (populated by GSD at creation)
-- `pyproject.toml` — renamed project, possibly with added deps
-- Application code (Python files, notebooks, etc.)
-- `uv.lock` — updated after any dependency changes
-- `.venv/` — local virtual environment (gitignored)
+**What:** Attach low-rank adapters (LoRA/QLoRA) to a base chat-competent causal LM and fine-tune on aligned pairs.
+**When to use:** Consumer GPUs; need fast iteration and small checkpoints.
+**Trade-offs:** Slightly lower ceiling than full fine-tune; requires base model availability and quantization care.
 
-**Key constraint:** Each branch must be self-contained. Its README fully describes the project without referencing the template repo.
+**Example:**
+```python
+from peft import LoraConfig, get_peft_model
 
-### Component 5: Root README Index (master branch, cross-cutting)
-
-**Responsibility:** Maintains a human-readable directory of active experiments/features so the template repo serves as a project dashboard.
-
-**What it tracks:**
-- List of active branches with descriptions
-- Worktree setup commands for each
-- Status (active, archived, etc.)
-
-**Key constraint:** This is on `master` — updating it requires either: (a) switching to master to commit, or (b) a cross-branch update mechanism. This is architecturally the trickiest component.
+config = LoraConfig(r=8, lora_alpha=16, target_modules=["q_proj", "v_proj"], lora_dropout=0.05)
+model = AutoModelForCausalLM.from_pretrained(base_model, load_in_4bit=True)
+model = get_peft_model(model, config)
+```
 
 ## Data Flow
 
-### Flow 1: New Project Creation (primary flow)
+### Request Flow
 
 ```
-User triggers "new project" via GSD
-         │
-         ▼
-┌─────────────────────────┐
-│ GSD reads PROJECT.md    │  ← Understands the template system
-│ and .planning/ context  │
-└───────────┬─────────────┘
-            │
-            ▼
-┌─────────────────────────────────────────┐
-│ 1. git branch <name> 00-experiments     │  ← New branch inherits Python env
-│ 2. git worktree add                     │
-│    02-worktrees/<name> <name>           │  ← Worktree appears in container
-└───────────┬─────────────────────────────┘
-            │
-            ▼
-┌─────────────────────────────────────────┐
-│ 3. Create README.md on branch           │  ← GSD populates with project name,
-│    (in 02-worktrees/<name>/)            │     description, goals, constraints
-│ 4. Update pyproject.toml name field     │  ← "dougpt" → "<project-name>"
-│ 5. Commit on the new branch             │
-└───────────┬─────────────────────────────┘
-            │
-            ▼
-┌─────────────────────────────────────────┐
-│ 6. Update root README.md (on master)    │  ← Add entry to active projects list
-│    with branch name + description       │     (REQUIRES branch switch or
-│ 7. Commit on master                     │     separate worktree for master)
-└─────────────────────────────────────────┘
+Raw VOD → VOD downloader → Audio demux/VAD → Whisper ASR (timestamps)
+    ↓
+Chat export → Chat parser → Normalized chat JSONL
+    ↓
+Alignment engine (offset search + windowing) → Paired samples
+    ↓
+Dataset builder (splits + filters) → HF dataset
+    ↓
+Tokenizer/formatter → PEFT trainer → Checkpoint
+    ↓
+Inference pipeline (context builder + generator + guardrails)
 ```
 
-### Flow 2: Context Inheritance
+### State Management
 
 ```
-00-experiments branch (base)
-├── pyproject.toml  ──── name: "dougpt"
-├── .python-version ──── 3.13
-├── uv.lock         ──── locked deps
-├── sandbox.ipynb   ──── starter notebook
-└── .gitignore      ──── Python patterns
-
-        │ git branch <name> 00-experiments
-        ▼
-
-<name> branch (inherits everything, then customizes)
-├── pyproject.toml  ──── name: "<project-name>" (UPDATED)
-├── README.md       ──── project docs (CREATED)
-├── .python-version ──── 3.13 (inherited)
-├── uv.lock         ──── locked deps (inherited, then updated)
-├── sandbox.ipynb   ──── starter notebook (inherited, may be renamed/extended)
-└── .gitignore      ──── Python patterns (inherited)
+Manifest store
+    ↓ (read-only)
+Pipeline stages → update manifests → artifacts on disk
+    ↓
+Training configs → checkpoints → inference configs
 ```
 
-### Flow 3: Cross-Branch Root README Update
+### Key Data Flows
 
-This is the architecturally sensitive flow. The root README lives on `master`, but project creation happens on feature branches worked on from `02-worktrees/`. Options:
+1. **Media → Transcript:** Demuxed audio segments feed Whisper, producing timestamped tokens; manifests capture confidence/logprob.
+2. **Chat → Alignment:** Chat messages with absolute timestamps are offset-adjusted, matched to transcript windows, and produce (context, target) pairs with provenance.
+3. **Dataset → Training:** Clean pairs are tokenized with special chat tokens and streamed into a PEFT trainer; checkpoints and eval metrics are versioned.
+4. **Context → Inference:** Recent transcript window is built, passed through the fine-tuned model with guardrails before emitting chat-style text.
 
-**Option A: GSD switches to master worktree (recommended)**
-```
-GSD working in 02-worktrees/<name>/
-    │
-    ├── Commits new project files on <name> branch
-    │
-    ├── Switches context to root worktree (master)
-    │   └── Edits README.md to add project entry
-    │   └── Commits on master
-    │
-    └── Returns context to 02-worktrees/<name>/
-```
+## Scaling Considerations
 
-**Option B: Separate master worktree**
-```
-02-worktrees/master/  ← dedicated worktree for master branch
-    └── Edit README.md here
-```
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| 0-1k users / few VODs | Single-machine pipeline; serial jobs; local disk store. |
+| 1k-100k users / tens of VODs | Parallelize ingestion/transcription; use job queue (Celery/RQ); cache Whisper features; incremental manifests. |
+| 100k+ users / hundreds of VODs | Move media to object storage; distributed ASR workers; sharded HF datasets; evaluation farm; separate inference service with batching. |
 
-**Option C: Defer root README updates**
-```
-Root README is updated manually or in a separate GSD step later.
-```
+### Scaling Priorities
 
-**Recommendation:** Option A. The root worktree IS master (confirmed by `git worktree list` output showing the repo root is on `vibe-coding-gsd` currently, but normally would be `master`). The GSD orchestrator can make commits on both the new branch (in its worktree) and on master (in the root directory) within the same workflow. No extra worktree needed.
+1. **First bottleneck:** ASR throughput; mitigate with batched Whisper inference or smaller models for drafts.
+2. **Second bottleneck:** Disk and I/O for media; mitigate with compressed intermediates and object storage with signed URLs.
+3. **Third bottleneck:** Training time; mitigate with QLoRA, gradient checkpointing, and smaller context windows.
 
-**Caveat:** The root worktree may be on a different branch during development (like `vibe-coding-gsd` right now). The root README update should be a best-effort step that gracefully handles the root not being on `master`.
+## Anti-Patterns
 
-## Build Order
+### Anti-Pattern 1: No drift correction
 
-Dependency-driven sequence for implementing the automation:
+**What people do:** Assume chat timestamps align perfectly to VOD; build pairs without offset search.
+**Why it's wrong:** Small delays/desync produce mislabeled pairs, harming fine-tune quality.
+**Do this instead:** Estimate per-VOD offset via keyword overlap or correlation against transcript; store offsets in manifests.
 
-### Phase 1: Template README on 00-experiments (no dependencies)
+### Anti-Pattern 2: Mixing streamer speech and chat targets
 
-**What:** Create a template `README.md` on the `00-experiments` branch with placeholder sections that GSD will populate for each new project.
+**What people do:** Use raw ASR text (mostly streamer speech) as model input without masking speaker/role.
+**Why it's wrong:** Model learns to mimic streamer, not chat; responses become incoherent.
+**Do this instead:** Use diarization or channel heuristics to mask streamer voice and preserve only chat-relevant context.
 
-**Why first:** Every subsequent branch inherits from `00-experiments`. If the template README doesn't exist, newly branched projects won't have one to populate — GSD would have to create it from scratch every time. Better to have a template that gets filled in.
+### Anti-Pattern 3: Training/test leakage across same VOD
 
-**Template structure:**
-```markdown
-# {PROJECT_NAME}
-
-## What This Is
-{DESCRIPTION}
-
-## Getting Started
-1. `cd 02-worktrees/{BRANCH_NAME}`
-2. `uv sync`
-3. Start coding
-
-## Dependencies
-See `pyproject.toml`
-
-## Status
-{STATUS}
-```
-
-**Depends on:** Nothing. Can be done immediately.
-
-### Phase 2: Branch + Worktree Creation (depends on Phase 1)
-
-**What:** GSD workflow that creates a branch from `00-experiments` and sets up the worktree.
-
-**Core commands:**
-```bash
-git worktree add -b <branch-name> 02-worktrees/<branch-name> 00-experiments
-```
-
-This single command: creates the branch from `00-experiments`, creates the worktree, and checks out the new branch in the worktree.
-
-**Depends on:** Phase 1 (template README exists to be populated).
-
-### Phase 3: Branch File Population (depends on Phase 2)
-
-**What:** GSD populates the branch's README and updates `pyproject.toml`.
-
-**Operations (all in `02-worktrees/<branch-name>/`):**
-1. Edit `README.md` — replace placeholders with project-specific content
-2. Edit `pyproject.toml` — change `name = "dougpt"` to `name = "<project-name>"`
-3. Optionally update `description` field in `pyproject.toml`
-4. `git add . && git commit` on the new branch
-
-**Depends on:** Phase 2 (worktree exists with inherited files).
-
-### Phase 4: Root README Index (depends on Phase 3)
-
-**What:** Update the root `README.md` on `master` to list the new project.
-
-**Operations:**
-1. Determine if root worktree is on `master` (check `git branch --show-current` in root)
-2. If yes: edit README.md, add entry, commit
-3. If no: skip with a note, or stash/switch/commit/switch-back
-
-**Depends on:** Phase 3 (need the project name and description to add to the index).
-
-## Where Automation Lives
-
-### GSD Instructions (primary — not scripts)
-
-The GSD AI workflow system is the automation engine. It reads `.planning/PROJECT.md` and the codebase context files to understand what to do. The "automation" is encoded as:
-
-1. **PROJECT.md requirements** — the checklist of what GSD must do for a new project
-2. **Codebase docs** (`.planning/codebase/`) — how the repo is structured
-3. **Research docs** (`.planning/research/`) — architectural decisions and patterns
-4. **GSD's own orchestration** — branching, file editing, committing
-
-**Why not shell scripts:** This is a personal template repo, not a team tool. The user interacts through GSD (AI orchestrator), not CLI scripts. Shell scripts add maintenance burden for a single-person workflow. GSD can execute the git commands directly.
-
-### When Scripts WOULD Make Sense (future consideration)
-
-If the template were shared with a team or the workflow became complex enough that GSD needed a "run this script" step, then a thin shell script would be appropriate. Candidates:
-
-- **Worktree cleanup:** `git worktree prune` + removal of stale entries from root README
-- **Dependency sync:** `uv sync` in a worktree after branch creation
-- **Validation:** Check that a branch's README is populated and `pyproject.toml` name is updated
-
-These would live in a `scripts/` directory on `master` if ever needed. For now, GSD handles all of this inline.
+**What people do:** Randomly split samples, causing adjacent windows from a single stream to appear in both train and eval.
+**Why it's wrong:** Inflates metrics; hides overfitting to stream-specific memes.
+**Do this instead:** Split by VOD/session; hold out entire streams for evaluation.
 
 ## Integration Points
 
-### Integration 1: Git Worktree ↔ Gitignore
+### External Services
 
-**How they connect:** `02-worktrees/*` is gitignored on both `master` and `00-experiments` branches. Only `02-worktrees/README.md` and `.gitkeep` are tracked.
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| Twitch/YouTube VOD | API + `yt-dlp` download with manifest logging | Handle auth rate limits; cache metadata |
+| Whisper ASR | Local Python/CLI with GPU | Requires `ffmpeg`; sliding 30s windows with timestamps (Whisper README) |
+| PEFT/Transformers | Local training for LoRA/QLoRA | Keep base model weights locally; monitor VRAM |
 
-**Why this matters:** Worktree contents are separate git checkouts — they MUST be gitignored from the master branch's perspective or you'd get nested git tracking conflicts. This is correctly configured.
+### Internal Boundaries
 
-### Integration 2: Git Worktree ↔ Submodules
-
-**Critical warning from official git docs (2026-02-02, git 2.53.0):**
-> "Multiple checkout in general is still experimental, and the support for submodules is incomplete. It is NOT recommended to make multiple checkouts of a superproject."
-
-**Impact on this project:** The `master` branch has a submodule (`01-dev-onboarding`), but `00-experiments` and its child branches do NOT. Since new project branches fork from `00-experiments` (which has no submodule references), this warning doesn't apply to project branch worktrees. The submodule only exists on template branches.
-
-**Safe pattern:** Never branch from `master` for project work. Always branch from `00-experiments`. This avoids the worktree + submodule incompatibility.
-
-### Integration 3: Branch ↔ pyproject.toml
-
-**How they connect:** Each branch has its own copy of `pyproject.toml` (inherited from `00-experiments`, then modified). The `name` field is the primary customization point.
-
-**Consideration:** If `00-experiments` gets new dependencies added later, existing project branches won't automatically inherit them. This is by design — each branch is independent after creation. If a project needs the base deps updated, it can `git merge 00-experiments` or cherry-pick.
-
-### Integration 4: Root Worktree ↔ Master Branch
-
-**How they connect:** The repo root (`/Users/progressedd/personal-projects/project-template`) is the main worktree. It's typically on `master` but can be on any branch (currently `vibe-coding-gsd`).
-
-**Implication for root README updates:** The GSD workflow that updates the root README must check which branch the root worktree is on. If it's not `master`, the update should either be deferred or done via a temporary branch switch.
-
-### Integration 5: 02-worktrees/ README ↔ Active Projects
-
-**How they connect:** The `02-worktrees/README.md` currently documents manual worktree commands. It could be auto-updated alongside the root README to list all active worktrees.
-
-**Recommendation:** Keep `02-worktrees/README.md` as a static usage guide. Use the root `README.md` as the dynamic project index. Two auto-updating files doubles the maintenance surface for no user benefit.
-
-## Anti-Patterns to Avoid
-
-### Anti-Pattern 1: Branching from master for project work
-
-**What:** Creating project branches from `master` instead of `00-experiments`.
-
-**Why bad:** `master` has numbered directories, submodule refs, and a completely different file tree. The project would inherit template scaffolding instead of a clean Python environment. Also triggers the git worktree + submodule incompatibility warning.
-
-**Instead:** Always branch from `00-experiments`. Enforce this in GSD workflow instructions.
-
-### Anti-Pattern 2: Nesting worktrees
-
-**What:** Creating a worktree inside another worktree's directory.
-
-**Why bad:** Git worktrees are separate working directories linked to the same repo. Nesting them creates confusing `.git` file resolution and potential data corruption.
-
-**Instead:** All worktrees go in `02-worktrees/` at the same level: `02-worktrees/<branch-a>/`, `02-worktrees/<branch-b>/`.
-
-### Anti-Pattern 3: Shared mutable state between branches
-
-**What:** Having project branches depend on files from `master` (like `00-supporting-files/`) at runtime.
-
-**Why bad:** Project branches checked out as worktrees have their own file tree — they can't see `master`'s `00-supporting-files/` directory. Branches are isolated.
-
-**Instead:** Any shared data needed by project branches should be on `00-experiments` so it gets inherited, or copied into the branch at creation time.
-
-### Anti-Pattern 4: Manual worktree management
-
-**What:** Users running `git worktree add` manually without the GSD workflow.
-
-**Why bad:** Skips README population, pyproject.toml renaming, and root README indexing. Creates inconsistent project state.
-
-**Instead:** All project creation goes through GSD. Document the GSD-driven workflow, not the manual commands.
-
-## Scalability Considerations
-
-| Concern | At 5 projects | At 20 projects | At 50+ projects |
-|---------|---------------|----------------|-----------------|
-| Worktree count | No issue | Git handles fine; disk space is the only limit since worktrees share object store | Consider archiving old worktrees with `git worktree remove` |
-| Root README index | Simple list | Needs sections (active/archived) | Needs auto-generation or a separate index file |
-| Branch proliferation | No issue | `git branch` output gets noisy | Use naming conventions (`exp-*`, `feat-*`) and prune merged branches |
-| Disk space | ~50MB per worktree (Python + venv) | ~1GB total | Significant; document `git worktree remove` + `uv` cache cleanup |
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| ingest ↔ audio | File manifests + paths | Decouple API credentials from media transforms |
+| audio ↔ alignment | Transcript JSON + segment metadata | Preserve timestamps/confidence for alignment heuristics |
+| alignment ↔ dataset | Aligned pairs + offsets | Include provenance (VOD ID, message ID) to debug |
+| dataset ↔ training | HF dataset + tokenizer config | Freeze schema versions per experiment |
+| training ↔ inference | Checkpoint + generation config | Store sampling defaults with model card |
 
 ## Sources
 
-- Official git-worktree docs: https://git-scm.com/docs/git-worktree (git 2.53.0, 2026-02-02) — HIGH confidence
-- Existing codebase analysis: `.planning/codebase/ARCHITECTURE.md`, `STRUCTURE.md`, `CONVENTIONS.md` — HIGH confidence
-- `PROJECT.md` requirements — HIGH confidence (first-party)
-- Git version on this machine: 2.51.2 — verified
+- Whisper README (timestamped ASR, sliding 30s windows): https://github.com/openai/whisper
+- Hugging Face PEFT docs (parameter-efficient fine-tuning for consumer hardware): https://huggingface.co/docs/peft/index
 
 ---
-
-*Architecture research: 2026-02-13*
+*Architecture research for: Local LLM fine-tuning from DougDoug VODs + Twitch chat*
+*Researched: 2026-02-21*
