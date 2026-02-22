@@ -1,56 +1,96 @@
-# Roadmap: Audio Extraction Review Workflow
+# Roadmap: DougPT
 
 ## Overview
 
-Build a notebook-first local workflow for audio extraction review. Phase 1 prepared the reusable template baseline. Phase 2 delivers a dedicated `audio-extraction-review` worktree pipeline for video audio extraction, local Whisper transcription, and local LLM segmentation into chat-style chunks.
+Pipeline to ingest DougDoug VODs and chat logs, align transcripts to messages, assemble a filtered dataset with provenance, fine-tune a local chat-style model, and serve guarded chat-like responses via local interfaces.
 
 ## Phases
 
-**Phase Numbering:**
-- Integer phases (1, 2): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
-
-Decimal phases appear between their surrounding integers in numeric order.
-
-- [x] **Phase 1: Template Preparation** - README template with placeholder variables on `00-experiments`
-- [x] **Phase 2: Audio Extraction Review Pipeline** - Notebook flow on dedicated worktree for extraction, local transcription, and chat-style segment generation
+- [ ] **Phase 1: Data Ingestion & Manifests** - VOD/chat assets ingested with versioned manifests and demuxed audio.
+- [ ] **Phase 2: Transcription & Alignment** - Local transcripts produced and chat aligned with QA hooks.
+- [ ] **Phase 3: Dataset & Cleaning** - Filtered paired datasets with provenance and immutable splits.
+- [ ] **Phase 4: Fine-Tuning & Evaluation** - PEFT fine-tune with shared prompt spec and regression-gated evals.
+- [ ] **Phase 5: Inference & Guardrails** - Local CLI/REST with prompt parity, shadow checks, and safety filters.
 
 ## Phase Details
 
-### Phase 1: Template Preparation
-**Goal**: A proper README template exists on `00-experiments` so every new branch inherits a structured, populatable starting point
+### Phase 1: Data Ingestion & Manifests
+**Goal**: VODs and chat logs are fetched, demuxed, and recorded in versioned manifests with reproducible metadata.
 **Depends on**: Nothing (first phase)
-**Requirements**: TMPL-01, TMPL-02
+**Requirements**: ING-01, ING-02
 **Success Criteria** (what must be TRUE):
-  1. `README.md` exists on the `00-experiments` branch with `$placeholder` variables (e.g., `$project_name`, `$description`)
-  2. Template includes all required sections: project name, description, what it does, how to run, status
-  3. Template contains a sentinel comment (e.g., `<!-- TEMPLATE: REPLACE ME -->`) that downstream tooling can detect to distinguish template vs populated README
-**Plans:** 1 plan
+  1. User can fetch a VOD and matching chat log by ID and see both recorded in a versioned manifest with timestamps.
+  2. User can retrieve demuxed audio for any ingested VOD with checksums matching manifest entries.
+  3. User can view per-asset metadata (duration, source URLs, storage paths, checksums) in manifests for reproducibility.
+  4. Re-running ingestion preserves deterministic manifests without duplicating or losing entries.
+**Plans**: TBD
 
 Plans:
-- [x] 01-01-PLAN.md — Create README template with $placeholder variables on 00-experiments
+- [ ] TBD
 
-### Phase 2: Audio Extraction Review Pipeline
-**Goal**: A user can run a local notebook on a dedicated `audio-extraction-review` worktree (separate from `chat-extraction`) to extract audio from video, transcribe with local Whisper, and segment transcript into chat-style output using a local LLM
-**Depends on**: Phase 1 (template baseline)
-**Requirements**: CHAT-01, CHAT-02, CHAT-03
+### Phase 2: Transcription & Alignment
+**Goal**: VOD audio is transcribed locally and chat messages are aligned to transcript windows with verified offsets.
+**Depends on**: Phase 1
+**Requirements**: ALGN-01, ALGN-02
 **Success Criteria** (what must be TRUE):
-  1. Notebook accepts a video input path and produces an extracted audio artifact usable for transcription
-  2. Notebook runs a local Whisper model and outputs a transcript file with stable, reusable structure
-  3. Notebook runs a local LLM pass that converts transcript into segment blocks aligned with the style used in `00-dev-log/2026-02-09.md`
-  4. The full notebook flow runs locally end-to-end without requiring hosted APIs
-**Plans**: 2 plans
+  1. User can run local transcription on a VOD and obtain word-level timestamped text.
+  2. User can see per-VOD chat↔transcript offset estimates and aligned chat messages to transcript windows.
+  3. User can play back sample segments or QA hooks to verify chat/message alignment accuracy.
+**Plans**: TBD
 
 Plans:
-- [x] 02-01-PLAN.md — Build deterministic notebook extraction and transcription stages with reusable checkpoints
-- [x] 02-02-PLAN.md — Add local LLM segmentation, dual-format export, and end-to-end notebook orchestration
+- [ ] TBD
+
+### Phase 3: Dataset & Cleaning
+**Goal**: Build a filtered, provenance-rich paired dataset with immutable splits ready for training.
+**Depends on**: Phase 2
+**Requirements**: DATA-01, DATA-02, DATA-03
+**Success Criteria** (what must be TRUE):
+  1. User can export train/validation/test splits of audio/transcript context → chat reply pairs with a fixed schema.
+  2. Spam/bots/mod commands/emote-only noise are removed or flagged; repeats are capped with reports available.
+  3. Each dataset example includes provenance (VOD id, offsets, ASR model/config, manifest version) accessible for audits.
+  4. Dataset manifests record immutable split membership so reruns reproduce identical splits.
+**Plans**: TBD
+
+Plans:
+- [ ] TBD
+
+### Phase 4: Fine-Tuning & Evaluation
+**Goal**: Fine-tune a local chat-capable model with PEFT and gate releases on held-out style/safety evaluation.
+**Depends on**: Phase 3
+**Requirements**: TRAIN-01, TRAIN-02, EVAL-01, EVAL-02
+**Success Criteria** (what must be TRUE):
+  1. User can tokenize/format data with the shared prompt/context spec identical to inference.
+  2. User can run PEFT/QLoRA fine-tuning within single-GPU budget and produce adapters/checkpoints.
+  3. User can evaluate on held-out streams/clips and see style/safety metrics plus human spot-check results.
+  4. Regression detection compares current runs to prior checkpoints and blocks promotion on style/safety drops.
+**Plans**: TBD
+
+Plans:
+- [ ] TBD
+
+### Phase 5: Inference & Guardrails
+**Goal**: Serve local chat-style responses with prompt parity and safety controls.
+**Depends on**: Phase 4
+**Requirements**: INF-01, INF-02, SAFE-01
+**Success Criteria** (what must be TRUE):
+  1. User can query a local CLI/REST interface with recent audio/transcript context and receive chat-style responses.
+  2. Responses use the same prompt/context format as training, and shadow evaluation logs parity during inference.
+  3. Guardrails apply toxicity/spam filters and rate limits before responses are returned.
+  4. User can inspect logs of responses and guardrail actions for QA.
+**Plans**: TBD
+
+Plans:
+- [ ] TBD
 
 ## Progress
 
-**Execution Order:**
-Phases execute in numeric order: 1 → 2
+**Execution Order:** Phases execute in numeric order.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Template Preparation | 1/1 | Complete | 2026-02-13 |
-| 2. Audio Extraction Review Pipeline | 2/2 | Complete    | 2026-02-22 |
+| 1. Data Ingestion & Manifests | 0/TBD | Not started | - |
+| 2. Transcription & Alignment | 0/TBD | Not started | - |
+| 3. Dataset & Cleaning | 0/TBD | Not started | - |
+| 4. Fine-Tuning & Evaluation | 0/TBD | Not started | - |
+| 5. Inference & Guardrails | 0/TBD | Not started | - |

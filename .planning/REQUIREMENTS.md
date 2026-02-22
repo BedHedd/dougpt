@@ -64,31 +64,31 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ING-01 | Phase  | Pending |
-| ING-02 | Phase  | Pending |
-| ALGN-01 | Phase  | Pending |
-| ALGN-02 | Phase  | Pending |
-| DATA-01 | Phase  | Pending |
-| DATA-02 | Phase  | Pending |
-| DATA-03 | Phase  | Pending |
-| TRAIN-01 | Phase  | Pending |
-| TRAIN-02 | Phase  | Pending |
-| EVAL-01 | Phase  | Pending |
-| EVAL-02 | Phase  | Pending |
-| INF-01 | Phase  | Pending |
-| INF-02 | Phase  | Pending |
-| SAFE-01 | Phase  | Pending |
-| DIFF-01 | Phase  | Pending |
-| DIFF-02 | Phase  | Pending |
-| DIFF-03 | Phase  | Pending |
-| DIFF-04 | Phase  | Pending |
-| DIFF-05 | Phase  | Pending |
-| DIFF-06 | Phase  | Pending |
+| ING-01 | Phase 1 | Pending |
+| ING-02 | Phase 1 | Pending |
+| ALGN-01 | Phase 2 | Pending |
+| ALGN-02 | Phase 2 | Pending |
+| DATA-01 | Phase 3 | Pending |
+| DATA-02 | Phase 3 | Pending |
+| DATA-03 | Phase 3 | Pending |
+| TRAIN-01 | Phase 4 | Pending |
+| TRAIN-02 | Phase 4 | Pending |
+| EVAL-01 | Phase 4 | Pending |
+| EVAL-02 | Phase 4 | Pending |
+| INF-01 | Phase 5 | Pending |
+| INF-02 | Phase 5 | Pending |
+| SAFE-01 | Phase 5 | Pending |
+| DIFF-01 | v2 | Pending |
+| DIFF-02 | v2 | Pending |
+| DIFF-03 | v2 | Pending |
+| DIFF-04 | v2 | Pending |
+| DIFF-05 | v2 | Pending |
+| DIFF-06 | v2 | Pending |
 
 **Coverage:**
 - v1 requirements: 14 total
-- Mapped to phases: 0
-- Unmapped: 14 ⚠️
+- Mapped to phases: 14
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-02-21*
