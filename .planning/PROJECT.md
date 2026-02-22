@@ -1,62 +1,48 @@
-# Project Template Workflow
+# DougPT
 
 ## What This Is
 
-A personal project template repository that serves as a launchpad for experiments and features. Uses git worktrees for parallel development — each new project branches off `00-experiments`, gets a worktree in `02-worktrees/`, and becomes a self-contained, self-documenting branch with its own README, project name, and dependencies.
+DougPT is a small project to build a chat-style AI model that behaves like Twitch chat from DougDoug streams.
+It focuses on extracting/cleaning chat messages from DougDoug stream recordings (or associated chat logs) and fine-tuning a ChatGPT-family model so it can generate “stream chat-like” responses on demand.
 
 ## Core Value
 
-Every experiment/feature branch is self-documenting from creation — branching, worktree setup, README population, and project naming happen automatically so you can start building immediately.
+Given an input prompt, the system can generate safe, coherent, Twitch-chat-style output that feels like DougDoug stream chat.
 
 ## Requirements
 
 ### Validated
 
-- ✓ Numbered directory convention for organization — existing
-- ✓ Git worktree support via `02-worktrees/` — existing
-- ✓ Dev log templates via `00-dev-log/` and Foam — existing
-- ✓ Python 3.13 base environment on `00-experiments` branch — existing
-- ✓ uv dependency management on `00-experiments` branch — existing
-- ✓ Git submodule for dev onboarding — existing
-- ✓ Comprehensive Python `.gitignore` — existing
+(None yet — ship to validate)
 
 ### Active
 
-- [ ] Template README on `00-experiments` branch with placeholder sections for new projects
-- [ ] GSD workflow branches from `00-experiments` and creates worktree in `02-worktrees/`
-- [ ] GSD populates branch README with project context on new project init
-- [ ] GSD updates `pyproject.toml` project name to match the experiment/feature
-- [ ] Root repo README updated to reference active branches/experiments
+- [ ] Extract and normalize DougDoug Twitch chat messages into a training dataset
+- [ ] Fine-tune a ChatGPT-family model on the dataset and run basic eval/sanity checks
+- [ ] Provide a simple way to run inference (CLI or small app) to test the tuned model
 
 ### Out of Scope
 
-- `03-app/` folder — removed; redundant with worktree-based workflow
-- CI/CD pipelines — not needed for a personal template repo
-- Publishing/packaging — experiments are local, not distributed
+- Live Twitch bot integration — not needed to validate the model and dataset pipeline
+- Audio/voice modeling — focus is text chat only
 
 ## Context
 
-- The `00-experiments` branch is a standalone Python project tree (pyproject.toml, uv.lock, .python-version, sandbox.ipynb) — completely separate from the master branch structure
-- `00-experiments` branch already references a README in pyproject.toml but none exists yet
-- `03-app/` has been removed — app code lives on feature/experiment branches, not the template
-- Current branches: `master`, `vibe-coding`, `worktrees`, `00-experiments`
-- The `02-worktrees/` directory contents are gitignored except for its README
-- Git submodule `01-dev-onboarding` points to `https://github.com/progressEdd/dev-onboarding.git`
+- Training data is Twitch chat from DougDoug streams; source material may be VOD chat logs or chat reconstructed from stream recordings.
+- Data quality matters (spam, emotes, copypasta, duplicates, timestamps, user ids) and will drive model behavior.
+- Compliance and safety matter (Twitch terms, privacy, disallowed content). Assume we need filtering and clear provenance.
 
 ## Constraints
 
-- **Branching model**: All new projects must branch from `00-experiments` to inherit the Python/uv setup
-- **Worktree location**: Worktrees live in `02-worktrees/` to keep the root clean
-- **Self-contained branches**: Each branch's README must fully describe the project without referencing the template repo
+- **Model**: Use ChatGPT-family models / OpenAI-compatible fine-tuning path — aligns with the intended deployment target.
+- **Safety**: Include dataset filtering and output guardrails appropriate for public chat-style text.
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Removed `03-app/` | Redundant with worktree-based workflow — app code lives on branches | ✓ Good |
-| Branch from `00-experiments` not `master` | `00-experiments` has Python/uv setup ready to go; `master` has the template structure | — Pending |
-| Keep `02-worktrees/` naming | Consistent with existing numbered directory convention | — Pending |
-| Branch README replaces root README per-branch | Each branch should be self-contained and self-documenting | — Pending |
+| Fine-tune a ChatGPT-family model | User explicitly wants “chatgpt models” | — Pending |
+| Train primarily on DougDoug stream chat | Keeps the style target narrow and testable | — Pending |
 
 ---
-*Last updated: 2026-02-13 after initialization*
+*Last updated: 2026-02-22 after initialization*
