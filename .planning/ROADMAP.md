@@ -2,7 +2,7 @@
 
 ## Overview
 
-Automate the creation of self-documenting experiment/feature branches from `00-experiments`, using git worktrees for parallel development. Phase 1 creates the README template that all future branches inherit. Phase 2 delivers the complete new-project workflow: branch creation, worktree setup, file population, and environment initialization. Phase 3 adds a root README index so the master branch reflects which experiments are active.
+Automate the creation of self-documenting experiment/feature branches from `00-experiments`, using git worktrees for parallel development. Phase 1 creates the README template that all future branches inherit. Phase 2 delivers the complete new-project workflow: branch creation, worktree setup, file population, and environment initialization. Phase 3 adds a root README index so the master branch reflects which experiments are active. Phase 4 adds a notebook-first chat extraction workflow: video audio extraction, local Whisper transcription, and local LLM segmentation into chat-style chunks.
 
 ## Phases
 
@@ -13,8 +13,7 @@ Automate the creation of self-documenting experiment/feature branches from `00-e
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Template Preparation** - README template with placeholder variables on `00-experiments`
-- [x] **Phase 2: Branch Creation Flow** - Complete new-project workflow from branch creation through ready-to-code state
-- [x] **Phase 3: Root README Index** - Master branch README updated to list active experiments
+- [ ] **Phase 2: Chat Extraction Notebook Pipeline** - Notebook flow for audio extraction, local transcription, and chat-style segment generation
 
 ## Phase Details
 
@@ -31,40 +30,29 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-01-PLAN.md — Create README template with $placeholder variables on 00-experiments
 
-### Phase 2: Branch Creation Flow
-**Goal**: A user can create a new experiment/feature project in one invocation and get a fully configured, ready-to-code worktree
-**Depends on**: Phase 1 (template must exist on `00-experiments` before branches inherit it)
-**Requirements**: WKTR-01, WKTR-02, WKTR-03, FILE-01, FILE-02, FILE-03, FILE-04
+### Phase 2: Chat Extraction Notebook Pipeline
+**Goal**: A user can run a local notebook on the `chat-extraction` worktree to extract audio from video, transcribe with local Whisper, and segment transcript into chat-style output using a local LLM
+**Depends on**: Phase 2 (worktree-based branch workflow)
+**Requirements**: CHAT-01, CHAT-02, CHAT-03
 **Success Criteria** (what must be TRUE):
-  1. Running the creation workflow produces a new branch forked from `00-experiments` with a worktree at `02-worktrees/<branch-name>`
-  2. The branch's README is populated with actual project context (name, description, purpose) — no leftover `$placeholder` variables
-  3. The branch's `pyproject.toml` has the correct project `name` and `description` fields (not the template defaults)
-  4. `uv sync` has run and a working `.venv` exists in the worktree — imports work immediately
-  5. Pre-flight checks prevent duplicate branch or worktree creation with a clear error message
-**Plans**: 1 plan (executed directly, no formal plan file)
+  1. Notebook accepts a video input path and produces an extracted audio artifact usable for transcription
+  2. Notebook runs a local Whisper model and outputs a transcript file with stable, reusable structure
+  3. Notebook runs a local LLM pass that converts transcript into segment blocks aligned with the style used in `00-dev-log/2026-02-09.md`
+  4. The full notebook flow runs locally end-to-end without requiring hosted APIs
+**Plans**: 2 plans
 
 Plans:
-- [x] 02-01: Execute branch creation flow end-to-end (direct execution)
-
-### Phase 3: Root README Index
-**Goal**: The master branch README reflects which experiments/features are actively in development
-**Depends on**: Phase 2 (must have at least one created branch to index)
-**Requirements**: ROOT-01
-**Success Criteria** (what must be TRUE):
-  1. After creating a new project, the root `README.md` on the main branch includes an entry for the new branch (name, description, worktree path)
-  2. The root README update does not corrupt or lose existing entries
-**Plans**: 1 plan (executed directly, no formal plan file)
-
-Plans:
-- [x] 03-01: Update root README on master with Active Experiments table (direct execution)
+- [ ] 02-01-PLAN.md — Build deterministic notebook extraction and transcription stages with reusable checkpoints
+- [ ] 02-02-PLAN.md — Add local LLM segmentation, dual-format export, and end-to-end notebook orchestration
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3
+Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Template Preparation | 1/1 | Complete | 2026-02-13 |
 | 2. Branch Creation Flow | 1/1 | Complete | 2026-02-13 |
 | 3. Root README Index | 1/1 | Complete | 2026-02-13 |
+| 4. Chat Extraction Notebook Pipeline | 0/1 | Not Started | -- |
