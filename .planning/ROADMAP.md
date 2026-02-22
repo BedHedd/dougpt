@@ -13,7 +13,7 @@ Build a notebook-first local workflow for audio extraction review. Phase 1 prepa
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Template Preparation** - README template with placeholder variables on `00-experiments`
-- [ ] **Phase 2: Audio Extraction Review Pipeline** - Notebook flow on dedicated worktree for extraction, local transcription, and chat-style segment generation
+- [x] **Phase 2: Audio Extraction Review Pipeline** - Notebook flow on dedicated worktree for extraction, local transcription, and chat-style segment generation
 
 ## Phase Details
 
@@ -43,7 +43,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — Build deterministic notebook extraction and transcription stages with reusable checkpoints
-- [ ] 02-02-PLAN.md — Add local LLM segmentation, dual-format export, and end-to-end notebook orchestration
+- [x] 02-02-PLAN.md — Add local LLM segmentation, dual-format export, and end-to-end notebook orchestration
 
 ## Progress
 
@@ -53,4 +53,4 @@ Phases execute in numeric order: 1 → 2
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Template Preparation | 1/1 | Complete | 2026-02-13 |
-| 2. Audio Extraction Review Pipeline | 1/2 | In Progress | -- |
+| 2. Audio Extraction Review Pipeline | 2/2 | Complete | 2026-02-22 |

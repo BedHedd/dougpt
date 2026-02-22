@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-13)
 
 ## Current Position
 
-Phase: 2 of 2 (Audio Extraction Review Pipeline) — IN PROGRESS
-Plan: 1 of 2 in current phase
-Status: 02-01 completed (extraction + transcription backbone); ready for 02-02 segmentation plan.
-Last activity: 2026-02-22 — Completed 02-01 with notebook extraction/transcription checkpoints and run metadata.
+Phase: 2 of 2 (Audio Extraction Review Pipeline) — COMPLETE
+Plan: 2 of 2 in current phase
+Status: 02-02 completed (local segmentation + dual-format export + orchestration); phase goals satisfied.
+Last activity: 2026-02-22 — Completed 02-02 with validated local LLM segmentation and end-to-end metadata-linked run.
 
-Progress: [███████░░░] 75%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -37,6 +37,7 @@ Progress: [███████░░░] 75%
 
 *Updated after each plan completion*
 | Phase 02 P01 | 3 min | 3 tasks | 14 files |
+| Phase 02 P02 | 9 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -54,11 +55,13 @@ Recent decisions affecting current work:
 - [Phase 02]: Used mono 16k FLAC extraction defaults for deterministic ASR-ready artifacts
 - [Phase 02]: Applied best-effort diarization with UNKNOWN fallback and logged fallback reasons
 - [Phase 02]: Recorded per-run metadata with resume counters to support idempotent reruns
+- [Phase 02]: Use JSON-schema constrained local segmentation responses and deterministic segment ID normalization.
+- [Phase 02]: Export the same normalized segment objects to both JSON and Markdown, then verify reload parity.
+- [Phase 02]: Run model smoke checks before segmentation and allow transcript checkpoint reuse to preserve prior artifacts.
 
 ### Pending Todos
 
-- Execute Phase 2 plan 02-02 (LLM segmentation and end-to-end orchestration)
-- Validate end-to-end notebook run on `audio-extraction-review` worktree
+- None.
 
 ### Blockers/Concerns
 
@@ -67,5 +70,5 @@ None. Cross-branch editing (Phase 3 concern) resolved via stash/checkout pattern
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 02-01-PLAN.md
-Resume file: .planning/phases/02-audio-extraction-review-pipeline/02-02-PLAN.md
+Stopped at: Completed 02-02-PLAN.md
+Resume file: None
