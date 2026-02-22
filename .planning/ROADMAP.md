@@ -23,10 +23,11 @@ Pipeline to ingest DougDoug VODs and chat logs, align transcripts to messages, a
   2. User can retrieve demuxed audio for any ingested VOD with checksums matching manifest entries.
   3. User can view per-asset metadata (duration, source URLs, storage paths, checksums) in manifests for reproducibility.
   4. Re-running ingestion preserves deterministic manifests without duplicating or losing entries.
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] TBD
+- [ ] 01-data-ingestion-manifests-01-PLAN.md — Build ingestion CLI for VOD+chat manifests
+- [ ] 01-data-ingestion-manifests-02-PLAN.md — Integrate audio demux and manifest validation
 
 ### Phase 2: Transcription & Alignment
 **Goal**: VOD audio is transcribed locally and chat messages are aligned to transcript windows with verified offsets.
@@ -36,10 +37,11 @@ Plans:
   1. User can run local transcription on a VOD and obtain word-level timestamped text.
   2. User can see per-VOD chat↔transcript offset estimates and aligned chat messages to transcript windows.
   3. User can play back sample segments or QA hooks to verify chat/message alignment accuracy.
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] TBD
+- [ ] 02-01-PLAN.md — Build WhisperX transcription pipeline with word-level timestamps
+- [ ] 02-02-PLAN.md — Build chat-transcript alignment with auto offset detection
 
 ### Phase 3: Dataset & Cleaning
 **Goal**: Build a filtered, provenance-rich paired dataset with immutable splits ready for training.
@@ -89,8 +91,8 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Data Ingestion & Manifests | 0/TBD | Not started | - |
-| 2. Transcription & Alignment | 0/TBD | Not started | - |
+| 1. Data Ingestion & Manifests | 0/2 | Not started | - |
+| 2. Transcription & Alignment | 0/2 | Not started | - |
 | 3. Dataset & Cleaning | 0/TBD | Not started | - |
 | 4. Fine-Tuning & Evaluation | 0/TBD | Not started | - |
 | 5. Inference & Guardrails | 0/TBD | Not started | - |
