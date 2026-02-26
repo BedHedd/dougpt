@@ -15,7 +15,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Transcription & Alignment
 
 - [x] **ALGN-01**: Transcribe VOD audio locally (Whisper or equivalent) with word-level timestamps.
-- [ ] **ALGN-02**: Estimate per-VOD chat/VOD time offsets and align chat messages to transcript windows with QA hooks.
+- [x] **ALGN-02**: Estimate per-VOD chat/VOD time offsets and align chat messages to transcript windows with QA hooks.
 
 ### Dataset & Cleaning
 
@@ -67,7 +67,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ING-01 | Phase 1 | Pending |
 | ING-02 | Phase 1 | Pending |
 | ALGN-01 | Phase 2 | Complete |
-| ALGN-02 | Phase 2 | Pending |
+| ALGN-02 | Phase 2 | Complete |
 | DATA-01 | Phase 3 | Pending |
 | DATA-02 | Phase 3 | Pending |
 | DATA-03 | Phase 3 | Pending |
