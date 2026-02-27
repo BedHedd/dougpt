@@ -68,27 +68,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ING-01 | Unmapped | Pending |
-| ING-02 | Unmapped | Pending |
-| ING-03 | Unmapped | Pending |
-| ASR-01 | Unmapped | Pending |
-| ASR-02 | Unmapped | Pending |
-| ASR-03 | Unmapped | Pending |
-| ALG-01 | Unmapped | Pending |
-| ALG-02 | Unmapped | Pending |
-| ALG-03 | Unmapped | Pending |
-| ALG-04 | Unmapped | Pending |
-| TRN-01 | Unmapped | Pending |
-| TRN-02 | Unmapped | Pending |
-| TRN-03 | Unmapped | Pending |
-| OPS-01 | Unmapped | Pending |
-| OPS-02 | Unmapped | Pending |
+| ING-01 | Phase 1 | Pending |
+| ING-02 | Phase 1 | Pending |
+| ING-03 | Phase 1 | Pending |
+| ASR-01 | Phase 2 | Pending |
+| ASR-02 | Phase 2 | Pending |
+| ASR-03 | Phase 2 | Pending |
+| ALG-01 | Phase 3 | Pending |
+| ALG-02 | Phase 3 | Pending |
+| ALG-03 | Phase 3 | Pending |
+| ALG-04 | Phase 3 | Pending |
+| TRN-01 | Phase 4 | Pending |
+| TRN-02 | Phase 4 | Pending |
+| TRN-03 | Phase 4 | Pending |
+| OPS-01 | Phase 4 | Pending |
+| OPS-02 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 15 total
-- Mapped to phases: 0
-- Unmapped: 15
+- Mapped to phases: 15
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-26*
-*Last updated: 2026-02-26 after initial definition*
+*Last updated: 2026-02-26 after roadmap mapping*
