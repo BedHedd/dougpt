@@ -198,6 +198,7 @@ function buildCandidates(speechStartMs: number, speechEndMs: number, chatEvents:
    - Dedup, safety/quality filters, split generation, final export.
    - Why sixth: training only on validated, contract-compliant data avoids expensive bad runs.
 
+<<<<<<< HEAD
 7. **Fine-tuning and evaluation harness**
    - Add TRL + PEFT training scripts and repeatable eval suites.
    - Why last: model iteration is only useful after alignment quality is measurable and stable.
@@ -234,6 +235,31 @@ function buildCandidates(speechStartMs: number, speechEndMs: number, chatEvents:
 **What people do:** rerun training with changed templates/splits but same run label.
 **Why it is wrong:** metrics are not comparable and regressions become invisible.
 **Do this instead:** hash prompt templates + split manifests and log them as first-class run artifacts.
+=======
+
+## Where Automation Lives
+
+### GSD Instructions (primary — not scripts)
+
+The GSD AI workflow system is the automation engine. It reads `.planning/PROJECT.md` and the codebase context files to understand what to do. The "automation" is encoded as:
+
+1. **PROJECT.md requirements** — the checklist of what GSD must do for a new project
+2. **Codebase docs** (`.planning/codebase/`) — how the repo is structured
+3. **Research docs** (`.planning/research/`) — architectural decisions and patterns
+4. **GSD's own orchestration** — branching, file editing, committing
+
+**Why not shell scripts:** This is a personal template repo, not a team tool. The user interacts through GSD (AI orchestrator), not CLI scripts. Shell scripts add maintenance burden for a single-person workflow. GSD can execute the git commands directly.
+
+### When Scripts WOULD Make Sense (future consideration)
+
+If the template were shared with a team or the workflow became complex enough that GSD needed a "run this script" step, then a thin shell script would be appropriate. Candidates:
+
+- **Worktree cleanup:** `git worktree prune` + removal of stale entries from root README
+- **Dependency sync:** `uv sync` in a worktree after branch creation
+- **Validation:** Check that a branch's README is populated and `pyproject.toml` name is updated
+
+These would live in a `scripts/` directory on `master` if ever needed. For now, GSD handles all of this inline.
+>>>>>>> template/vibe-coding-gsd
 
 ## Integration Points
 
