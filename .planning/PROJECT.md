@@ -1,8 +1,8 @@
-# DougGPT Twitch Chat Model
+# dougpt Twitch Chat Model
 
 ## What This Is
 
-DougGPT Twitch Chat Model is a local data and model-training project that recreates DougDoug-style stream interactions by modeling Twitch chat responses to DougDoug's spoken prompts. The system ingests DougDoug videos, extracts and transcribes DougDoug's audio track, extracts Twitch chat logs from the same videos, and aligns both timelines into training-ready conversation data. The target user is DougDoug himself, with all processing designed to run locally without paid external services.
+dougpt Twitch Chat Model is a local data and model-training project that recreates DougDoug-style stream interactions by modeling Twitch chat responses to DougDoug's spoken prompts. The system ingests DougDoug videos, extracts and transcribes DougDoug's audio track, extracts Twitch chat logs from the same videos, and aligns both timelines into training-ready conversation data. The target user is DougDoug himself, with all processing designed to run locally without paid external services.
 
 ## Core Value
 

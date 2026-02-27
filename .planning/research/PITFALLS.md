@@ -223,5 +223,5 @@ Phase 4 - Local training strategy and hardware envelope
 - Transformers bitsandbytes docs (4-bit/8-bit training supports extra parameters only; quantization caveats): https://huggingface.co/docs/transformers/quantization/bitsandbytes (HIGH)
 
 ---
-*Pitfalls research for: DougGPT Twitch Chat Model (pitfalls dimension)*
+*Pitfalls research for: dougpt Twitch Chat Model (pitfalls dimension)*
 *Researched: 2026-02-26*

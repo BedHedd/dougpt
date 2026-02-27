@@ -1,4 +1,4 @@
-# Requirements: DougGPT Twitch Chat Model
+# Requirements: dougpt Twitch Chat Model
 
 **Defined:** 2026-02-26
 **Core Value:** Create high-quality, locally generated DougDoug-speaker to Twitch-chat response pairs that are accurate enough to fine-tune a local language model.

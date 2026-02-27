@@ -1,6 +1,6 @@
 # Project Research Summary
 
-**Project:** DougGPT Twitch Chat Model
+**Project:** dougpt Twitch Chat Model
 **Domain:** Local multimodal (video/audio/chat) extraction, alignment, and local LLM adapter fine-tuning
 **Researched:** 2026-02-26
 **Confidence:** MEDIUM-HIGH

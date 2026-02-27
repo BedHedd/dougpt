@@ -1,4 +1,4 @@
-# Roadmap: DougGPT Twitch Chat Model
+# Roadmap: dougpt Twitch Chat Model
 
 ## Overview
 
