@@ -1,60 +1,51 @@
-# DougPT
+# DougGPT Twitch Chat Model
 
 ## What This Is
 
-DougPT is an AI dataset and pipeline project built around DougDoug stream videos, where DougDoug's extracted audio/transcript acts as the user side and aligned Twitch chat messages act as the responder side. The project focuses on repeatable scripts for video ingest, audio extraction, chat extraction, transcript generation, and timestamp alignment. It is for building a high-quality paired interaction dataset that can later power training and evaluation.
+DougGPT Twitch Chat Model is a local data and model-training project that recreates DougDoug-style stream interactions by modeling Twitch chat responses to DougDoug's spoken prompts. The system ingests DougDoug videos, extracts and transcribes DougDoug's audio track, extracts Twitch chat logs from the same videos, and aligns both timelines into training-ready conversation data. The target user is DougDoug himself, with all processing designed to run locally without paid external services.
 
 ## Core Value
 
-Produce reliable, timestamp-aligned DougDoug speech and Twitch chat pairs from stream videos so downstream model work has clean, trustworthy data.
+Create high-quality, locally generated DougDoug-speaker to Twitch-chat response pairs that are accurate enough to fine-tune a local language model.
 
 ## Requirements
 
 ### Validated
 
-<!-- Shipped and confirmed valuable. -->
-
 (None yet — ship to validate)
 
 ### Active
 
-<!-- Current scope. Building toward these. -->
-
-- [ ] Extract DougDoug audio tracks from source stream videos with reproducible scripts.
-- [ ] Extract Twitch chat logs from the same videos with precise timestamps.
-- [ ] Generate or ingest transcripts for DougDoug audio with normalized timing metadata.
-- [ ] Align transcript segments to Twitch chat windows into machine-readable training pairs.
-- [ ] Export aligned datasets and run quality checks for coverage, drift, and timestamp consistency.
+- [ ] Extract Twitch chat messages and timestamps from DougDoug videos.
+- [ ] Extract DougDoug's speech timeline from stream audio with local transcription.
+- [ ] Align speech segments to nearby chat responses into structured training examples.
+- [ ] Provide local scripts and reproducible pipelines for ingestion, alignment, and dataset export.
+- [ ] Fine-tune a local language model on the aligned dataset and run local inference.
 
 ### Out of Scope
 
-<!-- Explicit boundaries. Includes reasoning to prevent re-adding. -->
-
-- Building a production chat UI/app for end users — current milestone is data pipeline and alignment foundations.
-- Full model training, serving, and RLHF loops — deferred until dataset quality is validated.
+- Real-time live-stream integration with Twitch APIs — this project focuses on offline video-derived datasets first.
+- Paid third-party APIs or hosted training services — must run locally with free/open tooling.
+- Production deployment infrastructure — initial milestone is local research and model iteration.
 
 ## Context
 
-- Existing repository already contains stream/audio transcription-oriented assets and worktrees; this initiative consolidates and formalizes that effort into a structured project plan.
-- The primary data source is DougDoug stream video content and corresponding Twitch chat, with temporal alignment as the core technical challenge.
-- Success depends on deterministic processing scripts, robust metadata schemas, and explicit quality gates for alignment confidence.
-- The immediate need is to define v1 scope and roadmap so execution can proceed phase-by-phase with verifiable outputs.
+The project is greenfield for planning artifacts but targets an existing code repository. The domain is multimodal-ish stream processing, where one timeline comes from DougDoug audio/transcript data and one timeline comes from Twitch chat extraction. The main technical risk is timestamp quality and alignment heuristics, because model quality depends heavily on precise conversational pairing.
 
 ## Constraints
 
-- **Data Source**: Must use available DougDoug video/chat artifacts — scope is constrained by what can be legally and technically extracted.
-- **Reliability**: Alignment outputs must be reproducible — non-deterministic pipelines undermine model training quality.
-- **Compatibility**: Scripts should run in the existing repository environment and toolchain — avoids introducing incompatible infrastructure early.
-- **Performance**: Processing should scale to long stream videos and large chat volumes — one-off/manual workflows are insufficient.
-- **Security**: No secret leakage in artifacts/logs — planning and generated docs must remain safe for version control.
+- **Budget**: Zero recurring API cost — all extraction, transcription, alignment, and training must use local/free tools.
+- **Tech stack**: Local-first scripts and model tooling — avoids dependence on cloud services.
+- **Data quality**: Timestamp fidelity is required — poor alignment will degrade fine-tuning outcomes.
+- **User fit**: Designed for DougDoug persona interactions — prompt/response format must reflect stream dynamics.
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Prioritize extraction + alignment scripts before model training | Data quality is the bottleneck; model work without aligned pairs is premature | — Pending |
-| Treat DougDoug transcript as user channel and Twitch chat as responder channel | Matches intended simulation target and keeps labeling consistent | — Pending |
-| Use auto workflow with research and roadmap generation enabled | Faster initialization while still producing structured planning artifacts | — Pending |
+| Prioritize offline pipeline from existing videos | Fastest path to collect paired supervision data | — Pending |
+| Use local-only tooling for extraction/transcription/training | Avoids paid services and keeps workflow reproducible | — Pending |
+| Model DougDoug speech as input and Twitch chat as response | Matches intended interaction loop of the final AI | — Pending |
 
 ---
 *Last updated: 2026-02-26 after initialization*
