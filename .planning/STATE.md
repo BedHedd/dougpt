@@ -5,16 +5,16 @@
 See: `.planning/PROJECT.md` (updated 2026-02-26)
 
 **Core value:** Create high-quality, locally generated DougDoug-speaker to Twitch-chat response pairs that are accurate enough to fine-tune a local language model.
-**Current focus:** Phase 1 - Deterministic Video Ingestion
+**Current focus:** Phase 2 - Local Speech Transcript Extraction
 
 ## Current Position
 
-Phase: 1 of 4 (Deterministic Video Ingestion)
+Phase: 2 of 4 (Local Speech Transcript Extraction)
 Plan: 0 of TBD in current phase
 Status: Ready to plan
-Last activity: 2026-02-26 - Initial roadmap created and requirement traceability mapped.
+Last activity: 2026-02-27 - Phase 1 marked complete in roadmap and requirements tracking.
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 25%
 
 ## Performance Metrics
 

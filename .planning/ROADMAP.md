@@ -12,7 +12,7 @@ This roadmap delivers a local-first pipeline that turns DougDoug videos into tru
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Deterministic Video Ingestion** - Build stable local source manifests and repeatable chat extraction inputs.
+- [x] **Phase 1: Deterministic Video Ingestion** - Build stable local source manifests and repeatable chat extraction inputs.
 - [ ] **Phase 2: Local Speech Transcript Extraction** - Produce DougDoug-only, timestamped, normalized transcript data for alignment.
 - [ ] **Phase 3: Alignment and Dataset Curation** - Convert timelines into confidence-scored, QA-filtered training samples.
 - [ ] **Phase 4: Reproducible Training and End-to-End Ops** - Fine-tune locally, evaluate quality deltas, and run full pipeline with tracked artifacts.
@@ -27,7 +27,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. User can ingest one or more videos and get stable source IDs for each source.
   2. User can extract Twitch chat logs tied to source timestamps and message IDs for each ingested video.
   3. User can rerun ingestion for unchanged inputs and receive deterministic outputs without duplicate records.
-**Plans**: TBD
+**Plans**: Complete
 
 ### Phase 2: Local Speech Transcript Extraction
 **Goal**: Users can generate high-fidelity, local-only DougDoug speech timelines ready for downstream pairing.
@@ -69,7 +69,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Deterministic Video Ingestion | 0/TBD | Not started | - |
+| 1. Deterministic Video Ingestion | Complete | Completed | 2026-02-27 |
 | 2. Local Speech Transcript Extraction | 0/TBD | Not started | - |
 | 3. Alignment and Dataset Curation | 0/TBD | Not started | - |
 | 4. Reproducible Training and End-to-End Ops | 0/TBD | Not started | - |

@@ -9,9 +9,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Ingestion
 
-- [ ] **ING-01**: User can ingest one or more DougDoug video sources into a local raw dataset with stable source IDs.
-- [ ] **ING-02**: User can extract Twitch chat logs with message IDs and source timestamps for each ingested video.
-- [ ] **ING-03**: User can rerun ingestion idempotently and get deterministic outputs for unchanged inputs.
+- [x] **ING-01**: User can ingest one or more DougDoug video sources into a local raw dataset with stable source IDs.
+- [x] **ING-02**: User can extract Twitch chat logs with message IDs and source timestamps for each ingested video.
+- [x] **ING-03**: User can rerun ingestion idempotently and get deterministic outputs for unchanged inputs.
 
 ### Transcript Extraction
 
@@ -68,9 +68,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ING-01 | Phase 1 | Pending |
-| ING-02 | Phase 1 | Pending |
-| ING-03 | Phase 1 | Pending |
+| ING-01 | Phase 1 | Completed |
+| ING-02 | Phase 1 | Completed |
+| ING-03 | Phase 1 | Completed |
 | ASR-01 | Phase 2 | Pending |
 | ASR-02 | Phase 2 | Pending |
 | ASR-03 | Phase 2 | Pending |
@@ -91,4 +91,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-26*
-*Last updated: 2026-02-26 after roadmap mapping*
+*Last updated: 2026-02-27 after Phase 1 completion tracking update*
