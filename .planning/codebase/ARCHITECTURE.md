@@ -1,95 +1,110 @@
 # Architecture
 
-**Analysis Date:** 2026-02-21
+**Analysis Date:** 2026-02-26
 
 ## Pattern Overview
 
-**Overall:** Interactive notebook-style pipeline (marimo app + ad hoc cells)
+**Overall:** Schema-centric domain package with artifact-driven workflow architecture.
 
 **Key Characteristics:**
-- Marimo cells orchestrate path discovery, media extraction, and LLM prompts in `02-worktrees/chat-extraction/chat-extraction.py`
-- Shared data (frames, cached outputs) live outside code under `00-supporting-files/`
-- Vision model requests flow through the OpenAI Python client pointed at a local server (`http://localhost:1234/v1`)
+- Keep executable domain code minimal and typed in `src/transcription/models.py`.
+- Expose a narrow package API surface from `src/transcription/__init__.py`.
+- Drive processing workflow through persisted artifacts in `00-supporting-files/data/` and planning docs in `.planning/`.
 
 ## Layers
 
-**Application Notebook:**
-- Purpose: Drive video frame extraction and chat text detection experiments via marimo UI cells.
-- Location: `02-worktrees/chat-extraction/chat-extraction.py`
-- Contains: marimo cell definitions, path resolution helpers, ffmpeg/OpenCV experiments, OpenAI client calls, structured prompt drafts.
-- Depends on: `opencv-python`, `openai`, local ffmpeg binaries, images in `00-supporting-files/data/` and `00-supporting-files/images/`.
-- Used by: marimo runtime when launching the app.
+**Domain Schema Layer:**
+- Purpose: Define canonical in-memory structures for transcript and metadata data.
+- Location: `src/transcription/models.py`
+- Contains: Pydantic `BaseModel` classes (`WordTimestamp`, `TranscriptSegment`, `TranscriptResult`, `TranscriptMetadata`).
+- Depends on: `pydantic` (`BaseModel`, `Field`) imported in `src/transcription/models.py`.
+- Used by: Package consumers importing from `src/transcription/__init__.py` and pipeline code expected to read/write transcript artifacts.
 
-**Shared Data Assets:**
-- Purpose: Source media for experiments and cached intermediate outputs.
-- Location: `00-supporting-files/data/`, `00-supporting-files/images/`
-- Contains: keyframe caches, cropped chat frame sets, example images, extraction outputs.
-- Depends on: External tooling (ffmpeg/OpenCV) and filesystem layout.
-- Used by: marimo cells that read frames, send images to models, and display outputs.
+**Package Boundary Layer:**
+- Purpose: Provide stable import surface for transcription types.
+- Location: `src/transcription/__init__.py`
+- Contains: Re-exports and `__all__` declarations for domain models.
+- Depends on: `src.transcription.models`.
+- Used by: Any module or notebook importing transcription types from `src.transcription`.
 
-**Worktree Shells:**
-- Purpose: Isolate branch-specific workspaces and dependencies.
-- Location: `02-worktrees/00-experiments/`, `02-worktrees/chat-extraction/`, `02-worktrees/old-master/`
-- Contains: Branch-local `pyproject.toml`, notebooks, optional `.venv/` environments.
-- Depends on: uv/venv tooling for dependency resolution.
-- Used by: Developers per branch; only `chat-extraction` has functional code.
+**Artifact Storage Layer:**
+- Purpose: Persist pipeline inputs, outputs, logs, and review snapshots on disk.
+- Location: `00-supporting-files/data/`
+- Contains: Audio samples (`00-supporting-files/data/audio-extraction-review/audio/`), run logs (`00-supporting-files/data/audio-extraction-review/logs/`), run summaries (`00-supporting-files/data/audio-extraction-review/runs/`), transcript JSON (`00-supporting-files/data/audio-extraction-review/transcripts/`), and segment summaries (`00-supporting-files/data/audio-extraction-review/segments/segments.json`).
+- Depends on: Filesystem conventions and JSON/JSONL formats.
+- Used by: Notebook-based and script-based extraction/transcription workflows.
+
+**Planning and Process Layer:**
+- Purpose: Define roadmap, phase plans, and execution context for work.
+- Location: `.planning/`
+- Contains: State and requirements docs (`.planning/STATE.md`, `.planning/REQUIREMENTS.md`), phased implementation plans (`.planning/phases/`), and codebase mapping outputs (`.planning/codebase/`).
+- Depends on: Manual updates and GSD orchestration commands.
+- Used by: Contributors and automation processes coordinating implementation phases.
 
 ## Data Flow
 
-**Chat extraction experiment:**
+**Transcription Artifact Flow:**
 
-1. Resolve project roots and shared assets by walking parents to locate `00-supporting-files` (`chat-extraction.py`, early cells using `pathlib.Path`).
-2. Define media sources: `video_dir` points to `../large-files`, image inputs come from `00-supporting-files/data/chat_frames_test_30s_color` or cached PNGs in `00-supporting-files/data` and `00-supporting-files/images`.
-3. (Optional) Extract compressed frames via ffmpeg/OpenCV to PNGs for inspection (commented cells running subprocess commands).
-4. Build OpenAI client targeting a local server and convert images to data URLs before sending prompts that request chat message text/emote bounding boxes (`chat-extraction.py`, OpenAI cells).
-5. Display model responses inline in the marimo UI; future cells sketch pydantic schemas for structured outputs but keep them commented.
+1. Media and extracted audio references are captured in transcript artifacts such as `00-supporting-files/data/audio-extraction-review/transcripts/sample-single.json` (`source.media_path`, `source.audio_path`).
+2. Transcript engine metadata and transcript segments are serialized to JSON artifacts in `00-supporting-files/data/audio-extraction-review/transcripts/` and then summarized into segment-level outputs in `00-supporting-files/data/audio-extraction-review/segments/segments.json`.
+3. Run-level operational logs and outcomes are appended to JSONL and JSON records under `00-supporting-files/data/audio-extraction-review/logs/` and `00-supporting-files/data/audio-extraction-review/runs/`.
 
 **State Management:**
-- marimo manages reactive cell state; no persistent state beyond files under `00-supporting-files`.
+- Manage state as file-based artifacts rather than long-lived application state; treat JSON/JSONL files in `00-supporting-files/data/` as the source of truth for run outputs.
 
 ## Key Abstractions
 
-**Path resolution helper:**
-- Purpose: Discover repository root and supporting files directory regardless of launch location.
-- Examples: `chat-extraction.py` cells computing `start`, `project_parent`, `supporting_files`.
-- Pattern: Walk parent directories with `Path.parents` until `00-supporting-files` is found.
+**Word-Level Timing Model:**
+- Purpose: Represent token timing and optional confidence for aligned transcription words.
+- Examples: `src/transcription/models.py` (`WordTimestamp`).
+- Pattern: Typed Pydantic model with explicit field descriptions.
 
-**Vision model request wrapper:**
-- Purpose: Encapsulate OpenAI client setup and image-to-data-URL conversion for vision prompts.
-- Examples: `image_file_to_data_url` and `client = OpenAI(...)` in `chat-extraction.py`.
-- Pattern: Build base64 data URLs, send `chat.completions.create` with mixed text/image content.
+**Segment-Level Transcript Model:**
+- Purpose: Represent ordered transcript chunks and their nested word timestamps.
+- Examples: `src/transcription/models.py` (`TranscriptSegment`).
+- Pattern: Composite model that nests `WordTimestamp` in a `list` field.
 
-**Structured output schema (sketched):**
-- Purpose: Define pydantic models for chat message extraction and emote bounding boxes.
-- Examples: Commented `EmoteBox`, `ChatMessage`, `BatchExtraction` classes in `chat-extraction.py`.
-- Pattern: pydantic `BaseModel` with typed fields and descriptions for OpenAI tool/response parsing.
+**Run Transcript Aggregate Model:**
+- Purpose: Represent full transcript output for a single audio source.
+- Examples: `src/transcription/models.py` (`TranscriptResult`).
+- Pattern: Aggregate root model containing segment collection and language metadata.
+
+**Transcript Metadata Model:**
+- Purpose: Store sidecar metadata needed for reproducibility.
+- Examples: `src/transcription/models.py` (`TranscriptMetadata`).
+- Pattern: Flat metadata model carrying model identifiers and execution parameters.
 
 ## Entry Points
 
-**marimo app:**
-- Location: `02-worktrees/chat-extraction/chat-extraction.py`
-- Triggers: Run via `marimo run chat-extraction.py` (or equivalent) inside `02-worktrees/chat-extraction` environment.
-- Responsibilities: Initialize paths, reference media assets, optionally run ffmpeg/OpenCV diagnostics, invoke vision models, and render responses.
+**Package Import Entry Point:**
+- Location: `src/transcription/__init__.py`
+- Triggers: `import src.transcription` from notebooks/scripts/modules.
+- Responsibilities: Re-export canonical model types and define public API surface via `__all__`.
 
-**Notebooks:**
-- Locations: `02-worktrees/chat-extraction/chat-extraction-script.ipynb`, `02-worktrees/chat-extraction/extraction-review.ipynb`, `02-worktrees/chat-extraction/sandbox.ipynb`
-- Triggers: Open in Jupyter-compatible environment per worktree.
-- Responsibilities: Ad hoc exploration; no reusable library code.
+**Workflow Documentation Entry Point:**
+- Location: `README.md`
+- Triggers: Repository onboarding and setup activities.
+- Responsibilities: Document submodule bootstrap and repository initialization commands.
+
+**Notebook Execution Entry Point (workflow artifact):**
+- Location: `02-worktrees/audio-extraction-review/audio-extraction.ipynb`
+- Triggers: Manual exploratory execution in the dedicated worktree.
+- Responsibilities: Execute end-to-end extraction/review flow outside the main `src/` package.
 
 ## Error Handling
 
-**Strategy:** Pragmatic, print-driven validation within cells; no centralized exception handling.
+**Strategy:** Prefer schema validation and artifact-level status encoding over centralized exception handling.
 
 **Patterns:**
-- Inspect subprocess return codes from ffmpeg/OpenCV calls and print stderr (`chat-extraction.py`, ffmpeg cell).
-- Rely on marimo to surface exceptions inline; no retries or guards around OpenAI calls.
+- Validate shape/types at model boundaries with Pydantic models in `src/transcription/models.py`.
+- Record fallback reasons and run outcomes directly in output artifacts (for example `diarization.fallback_reason` in `00-supporting-files/data/audio-extraction-review/transcripts/sample-single.json`).
 
 ## Cross-Cutting Concerns
 
-**Logging:** Inline `print` statements in cells; no structured logging.
-**Validation:** Commented pydantic schemas intended for LLM structured output; not enforced at runtime.
-**Authentication:** OpenAI client configured with placeholder API key (`unused`) and local `base_url`; expects external service to handle auth.
+**Logging:** Persist operational events to JSONL files in `00-supporting-files/data/audio-extraction-review/logs/`.
+**Validation:** Use typed model validation in `src/transcription/models.py` and schema markers (`schema_version`) in JSON artifacts like `00-supporting-files/data/audio-extraction-review/segments/segments.json`.
+**Authentication:** No application-level auth layer is implemented in `src/`; environment-based credentials are handled externally, and `00-supporting-files/data/.env` is present for local configuration.
 
 ---
 
-*Architecture analysis: 2026-02-21*
+*Architecture analysis: 2026-02-26*
