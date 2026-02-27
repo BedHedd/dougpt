@@ -4,88 +4,132 @@
 
 ## Tech Debt
 
-**Notebook-first pipeline with minimal packaged code:**
-- Issue: Core extraction/transcription/segmentation logic lives in a notebook instead of importable modules, while `src/` only contains Pydantic models.
-- Files: `02-worktrees/audio-extraction-review/audio-extraction.ipynb`, `src/transcription/models.py`, `src/transcription/__init__.py`
-- Impact: Reuse, testing, dependency management, and production hardening are difficult because behavior is coupled to notebook execution order.
-- Fix approach: Move pipeline functions from `02-worktrees/audio-extraction-review/audio-extraction.ipynb` into versioned Python modules under `src/` and keep the notebook as a thin orchestration/demo layer.
+**Untracked primary implementation in worktree directories:**
+- Issue: The main implementation is in `02-worktrees/chat-extraction/chat-extraction.py` (4,590 lines) and is duplicated in `02-worktrees/old-master/02-development/chat-extraction/chat-extraction.py`, while top-level `.gitignore` excludes `02-worktrees/*` except `02-worktrees/README.md`.
+- Files: `.gitignore`, `02-worktrees/chat-extraction/chat-extraction.py`, `02-worktrees/old-master/02-development/chat-extraction/chat-extraction.py`, `02-worktrees/README.md`
+- Impact: Changes in the real pipeline are easy to lose, hard to review, and difficult to reuse from the tracked project root.
+- Fix approach: Promote one canonical implementation path under a tracked directory (for example `src/`), keep `02-worktrees/` for temporary work only, and delete the duplicate copy.
 
-**No dependency/packaging manifest in repo root:**
-- Issue: Runtime dependencies are implied by notebook imports (`faster_whisper`, `whisperx`, `dotenv`) but no pinned manifest exists.
-- Files: `02-worktrees/audio-extraction-review/audio-extraction.ipynb`, `.gitignore`
-- Impact: Environment recreation is non-deterministic and failures depend on local machine state.
-- Fix approach: Add `pyproject.toml` with pinned dependencies and optional extras for diarization/segmentation.
+**Monolithic notebook-export script used as production logic:**
+- Issue: The extraction workflow, ffmpeg orchestration, frame reduction, and model calls are combined into one generated marimo script.
+- Files: `02-worktrees/chat-extraction/chat-extraction.py`
+- Impact: High change risk, poor testability, and fragile cross-cell dependency coupling.
+- Fix approach: Split into small tracked modules (I/O, ffmpeg wrapper, extraction logic, schema/models, reporting), and keep notebook UI as a thin caller.
+
+**Repository stores generated artifacts as source-of-truth:**
+- Issue: Large generated outputs are committed directly instead of regenerated in pipeline steps.
+- Files: `00-supporting-files/data/extractions/extractions.jsonl`, `00-supporting-files/data/extractions/metrics.jsonl`, `00-supporting-files/data/full_chat_frames_report.json`, `00-supporting-files/data/chat_frames_full_color/report.json`
+- Impact: Repo churn, heavy diffs, and lower confidence in reproducibility.
+- Fix approach: Keep only fixtures/samples in git, move full generated artifacts to release storage, and add deterministic regeneration scripts.
 
 ## Known Bugs
 
-**Diarization regularly falls back due missing Hugging Face token:**
-- Symptoms: Transcription records report fallback reason and output segments with no speaker assignment from diarization.
-- Files: `00-supporting-files/data/audio-extraction-review/transcripts/sample-single.json`, `00-supporting-files/data/audio-extraction-review/logs/transcription-task2-verify.jsonl`, `02-worktrees/audio-extraction-review/audio-extraction.ipynb`
-- Trigger: Run transcription with diarization enabled and no `HUGGINGFACE_TOKEN` in environment.
-- Workaround: Set `HUGGINGFACE_TOKEN` or disable diarization in `CONFIG["diarization"]["enabled"]` in `02-worktrees/audio-extraction-review/audio-extraction.ipynb`.
+**Syntax error in both chat extraction script copies:**
+- Symptoms: Python compilation fails with `SyntaxError: f-string: expecting '}'`.
+- Files: `02-worktrees/chat-extraction/chat-extraction.py`, `02-worktrees/old-master/02-development/chat-extraction/chat-extraction.py`
+- Trigger: Run `python3 -m py_compile 02-worktrees/chat-extraction/chat-extraction.py`.
+- Workaround: Replace the malformed f-string command construction at line 92 with safe argument-list construction.
 
-**Extraction failure on missing media paths is present in persisted logs:**
-- Symptoms: Extraction stage records `status: failed` with `error: input_not_found`.
-- Files: `00-supporting-files/data/audio-extraction-review/logs/extraction-failures.jsonl`, `00-supporting-files/data/audio-extraction-review/logs/extraction-task1-batch.jsonl`, `02-worktrees/audio-extraction-review/audio-extraction.ipynb`
-- Trigger: Provide `single_input`/batch item that does not resolve to an existing file.
-- Workaround: Validate media inventory under `large-files/` before run and fail fast during config validation.
+**Tracked modules currently missing from working tree:**
+- Symptoms: Package files are tracked in git but absent locally (`git status` shows deleted).
+- Files: `src/transcription/__init__.py`, `src/transcription/models.py`, `02-worktrees/audio-extraction-review/audio-extraction.ipynb`
+- Trigger: Fresh checkout in current state without restoring deleted tracked files.
+- Workaround: Restore tracked files before running importers/tools that depend on transcription types.
+
+**Empty app entrypoint in legacy worktree:**
+- Symptoms: App entrypoint exists but has no implementation.
+- Files: `02-worktrees/old-master/03-app/app.py`
+- Trigger: Attempt to run app from old-master tree.
+- Workaround: Use notebook-based flow only, or implement a minimal CLI/app entrypoint.
 
 ## Security Considerations
 
-**Run artifacts persist sensitive local context and auth-style config fields:**
-- Risk: Run metadata stores absolute filesystem paths and segmentation config snapshots including API-key-like fields.
-- Files: `00-supporting-files/data/audio-extraction-review/runs/run-20260222T030354Z-206b1285.json`, `02-worktrees/audio-extraction-review/audio-extraction.ipynb`
-- Current mitigation: `.env` is ignored in `.gitignore`; notebook supports loading env values from `00-supporting-files/data/.env`.
-- Recommendations: Redact path fields and secrets before writing run snapshots; avoid storing `segmentation.api_key` in persisted `config_snapshot`.
+**Environment file present in data directory:**
+- Risk: Secret-bearing env files are colocated with project data and can be accidentally copied or committed in adjacent repos.
+- Files: `00-supporting-files/data/.env`, `.gitignore`
+- Current mitigation: `.env` is git-ignored in `.gitignore`.
+- Recommendations: Move runtime secrets out of repository directories and use OS-level secret storage or per-user env injection.
+
+**Weak local API authentication assumptions:**
+- Risk: Model API client is configured with HTTP localhost and `api_key="unused"`, which is unsafe if endpoint binding changes.
+- Files: `02-worktrees/chat-extraction/chat-extraction.py`
+- Current mitigation: Endpoint currently targets localhost (`http://localhost:1234/v1`).
+- Recommendations: Require non-placeholder tokens, validate host allowlist, and centralize endpoint/auth config.
 
 ## Performance Bottlenecks
 
-**Large committed JSONL artifacts increase repo and tooling overhead:**
-- Problem: Very large tracking data is committed directly in git.
-- Files: `00-supporting-files/data/extractions/extractions.jsonl`, `00-supporting-files/data/extractions/metrics.jsonl`
-- Cause: Pipeline/log outputs are versioned as normal source artifacts rather than externalized or rotated.
-- Improvement path: Move heavy outputs to `large-files/` or external object storage, and track only compact manifests/summaries in git.
+**Frame processing loop is CPU-heavy and Python-bound:**
+- Problem: Raw frames are streamed from ffmpeg and processed per-frame in Python/numpy with row-energy and correlation calculations.
+- Files: `02-worktrees/chat-extraction/chat-extraction.py`
+- Cause: Full-frame decoding (`_iter_rgb_frames_ffmpeg`) + per-frame CPU feature extraction and write paths.
+- Improvement path: Add bounded worker parallelism and profiling-guided vectorization; push more filtering down to ffmpeg where possible.
+
+**Large extraction datasets inflate local workflows:**
+- Problem: Artifacts are large and duplicated across directories (`00-supporting-files` plus `02-worktrees/old-master/00-supporting-files`).
+- Files: `00-supporting-files/data/extractions/extractions.jsonl`, `02-worktrees/old-master/00-supporting-files/data/extractions/extractions.jsonl`
+- Cause: Full history and generated outputs retained in multiple locations.
+- Improvement path: Keep one canonical artifact location, compress/archive historical runs, and prune duplicated trees.
 
 ## Fragile Areas
 
-**Broad exception handling masks root causes across pipeline stages:**
-- Files: `02-worktrees/audio-extraction-review/audio-extraction.ipynb`
-- Why fragile: Multiple `except Exception` branches convert failures into generic fallback strings and continue execution, which can hide actionable diagnostics.
-- Safe modification: Refactor stage functions to catch specific exception types and standardize typed error records.
-- Test coverage: No automated tests detected for extraction/transcription/segmentation paths.
+**Cell-order-dependent marimo script wiring:**
+- Files: `02-worktrees/chat-extraction/chat-extraction.py`
+- Why fragile: Many `@app.cell` functions depend on implicit symbol passing and state mutation; minor edits can break dependency resolution.
+- Safe modification: Extract shared functions into importable modules and keep each cell side-effect-free.
+- Test coverage: No automated regression tests detected for cell dependency execution order.
 
-**Path discovery depends on directory naming conventions:**
-- Files: `02-worktrees/audio-extraction-review/audio-extraction.ipynb`
-- Why fragile: `resolve_project_paths` infers project roots by searching for `00-supporting-files`; renames or moved notebooks break resolution.
-- Safe modification: Introduce explicit root config/env override and validate required paths before stage execution.
-- Test coverage: No path resolution tests detected.
+**Duplicate script copies diverge easily:**
+- Files: `02-worktrees/chat-extraction/chat-extraction.py`, `02-worktrees/old-master/02-development/chat-extraction/chat-extraction.py`
+- Why fragile: Same 4,590-line file exists in two places; bug fixes must be manually mirrored.
+- Safe modification: Delete one copy and replace with import references to a single tracked module.
+- Test coverage: No sync guard or test ensures behavioral parity between copies.
 
 ## Scaling Limits
 
-**Single-process local CPU pipeline with local model endpoint dependency:**
-- Current capacity: Configuration defaults to `tiny.en` on `cpu`, synchronous stage execution, and local HTTP segmentation endpoint.
-- Limit: Throughput degrades sharply for larger media batches and long transcripts.
-- Scaling path: Add batched/parallel workers, GPU-aware config profiles, and queue-backed job orchestration outside notebook runtime.
+**Repository footprint grows with experiment outputs:**
+- Current capacity: `00-supporting-files` is ~55 MB in workspace and includes high-volume generated image/jsonl artifacts.
+- Limit: Routine iteration causes repository size and clone/update time growth.
+- Scaling path: Store heavy outputs outside git (artifact store/object storage) and keep small golden fixtures only.
+
+**Worktree environment growth becomes costly:**
+- Current capacity: `02-worktrees/chat-extraction` is ~567 MB (includes local environment and generated outputs).
+- Limit: Parallel worktrees multiply storage and dependency-sync time.
+- Scaling path: Centralize environment management and prune worktree-local caches/venvs regularly.
 
 ## Dependencies at Risk
 
-**Unpinned optional ML dependencies:**
-- Risk: `faster_whisper`, `whisperx`, and diarization stack availability/version mismatches can break runs.
-- Impact: Transcription or diarization stage fails or silently downgrades to fallback behavior.
-- Migration plan: Pin dependency versions in `pyproject.toml`, split optional extras, and run compatibility checks in CI.
+**Python/runtime floor limits contributor compatibility:**
+- Risk: `requires-python = ">=3.13"` narrows supported dev environments.
+- Impact: Onboarding friction and CI runner compatibility risk.
+- Migration plan: Evaluate 3.11/3.12 support unless 3.13-only features are required.
+
+**Critical external binaries are not preflight-validated:**
+- Risk: ffmpeg/ffprobe absence fails at runtime; availability is not checked up front.
+- Impact: Pipeline failures surface late in execution.
+- Migration plan: Add startup preflight checks and explicit install docs bound to executable versions.
 
 ## Missing Critical Features
 
-**No automated validation pipeline (tests + CI):**
-- Problem: There is no test suite or CI workflow detected to guard notebook or model schema changes.
-- Blocks: Safe refactoring of `02-worktrees/audio-extraction-review/audio-extraction.ipynb` into reusable modules and reliable regression detection.
+**No stable tracked execution entrypoint for extraction pipeline:**
+- Problem: Core logic is in ignored worktrees rather than tracked application code.
+- Blocks: Reliable CI execution, packaging, and reproducible team workflows.
+
+**No CI/test automation for extraction and transcription flows:**
+- Problem: Test harness and automated validation are absent in tracked code paths.
+- Blocks: Safe refactors and quick detection of extraction regressions.
 
 ## Test Coverage Gaps
 
-**Core pipeline logic is untested:**
-- What's not tested: Input discovery, ffmpeg extraction error branches, diarization fallback paths, segmentation schema validation, and export reload checks.
-- Files: `02-worktrees/audio-extraction-review/audio-extraction.ipynb`, `src/transcription/models.py`
-- Risk: Changes can introduce silent regressions in artifact shape or stage orchestration.
+**Extraction pipeline and ffmpeg wrappers are untested:**
+- What's not tested: command construction, keyframe report generation, and frame reduction behavior.
+- Files: `02-worktrees/chat-extraction/chat-extraction.py`
+- Risk: Silent output drift and runtime failures from small refactors.
+- Priority: High
+
+**Transcription model schema compatibility lacks checks in current tree:**
+- What's not tested: model serialization and downstream contract compatibility.
+- Files: `src/transcription/models.py`, `src/transcription/__init__.py`
+- Risk: Consumer breakage when schema fields change.
 - Priority: High
 
 ---

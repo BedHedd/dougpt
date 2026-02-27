@@ -4,76 +4,85 @@
 
 ## APIs & External Services
 
-**LLM inference (OpenAI-compatible local endpoint):**
-- LM Studio-hosted local API - transcript segmentation/summarization in run config snapshots
-  - SDK/Client: `openai` Python client usage shown in `00-dev-log/2026-02-01.md`
-  - Endpoint: `http://localhost:1234/v1` captured in `00-supporting-files/data/audio-extraction-review/runs/run-20260222T030354Z-206b1285.json`
-  - Auth: API key field configured per run (`api_key` key in run JSON); env var name not explicitly codified in tracked files
+**LLM/VLM Inference:**
+- OpenAI-compatible Chat Completions API - structured vision/text extraction workflow.
+  - SDK/Client: `openai` client usage shown in `00-dev-log/2026-02-01.md` and compatibility handling in `00-dev-log/2026-02-09.md`.
+  - Auth: API key passed to client (`api_key`) in examples in `00-dev-log/2026-02-01.md`.
+- Local LM Studio endpoint - local inference server used via OpenAI-compatible base URLs.
+  - SDK/Client: `OpenAI(base_url="http://localhost:1234/v0")` and `OpenAI(base_url="http://localhost:1234/v1")` shown in `00-dev-log/2026-02-01.md`.
+  - Auth: local key placeholder (`api_key="lm-studio"` / `"unused"`) in `00-dev-log/2026-02-01.md`.
+- Azure OpenAI - provider configuration template exists.
+  - SDK/Client: OpenAI-compatible variables defined in `00-supporting-files/data/sample.env.file`.
+  - Auth: `AZURE_OPENAI_API_KEY` in `00-supporting-files/data/sample.env.file`.
+- NVIDIA NIMs API - provider configuration template exists.
+  - SDK/Client: base URL `https://integrate.api.nvidia.com/v1` in `00-supporting-files/data/sample.env.file`.
+  - Auth: `NIMS_API_KEY` in `00-supporting-files/data/sample.env.file`.
 
-**Speech transcription/diarization engines:**
-- Faster-Whisper - ASR engine recorded in transcript metadata `00-supporting-files/data/audio-extraction-review/transcripts/sample-single.json`
-  - SDK/Client: runtime pipeline (source file not tracked in this branch); evidence in `transcription.engine`
-  - Auth: none required in observed run snapshots
-- WhisperX diarization - speaker diarization provider recorded in run snapshots `00-supporting-files/data/audio-extraction-review/runs/run-20260222T023330Z-f9bdbf0d.json`
-  - SDK/Client: runtime pipeline (source file not tracked in this branch)
-  - Auth: Hugging Face token required when diarization is enabled; missing-token fallback logged as `missing_huggingface_token` in `00-supporting-files/data/audio-extraction-review/logs/transcription-20260222T023330Z-f9bdbf0d.jsonl`
-
-**Media ingestion tools:**
-- FFmpeg - media decode/extraction/transcode operations in `00-dev-log/2026-01-04.md` and run `config_snapshot.ffmpeg` in `00-supporting-files/data/audio-extraction-review/runs/run-20260222T023331Z-42b31623.json`
-- yt-dlp - manual source video download step documented in `00-dev-log/2026-01-04.md`
+**Media/Data Sources:**
+- YouTube - source VOD download and reference links for dataset generation.
+  - SDK/Client: `yt-dlp` CLI usage in `00-dev-log/2026-01-04.md`.
+  - Auth: Not required for documented public URLs in `00-dev-log/2026-01-01.md` and `00-dev-log/2026-01-04.md`.
 
 ## Data Storage
 
 **Databases:**
-- Not detected
-  - Connection: Not applicable
-  - Client: Not applicable
+- Not detected.
+  - Connection: Not applicable.
+  - Client: Not applicable.
 
 **File Storage:**
-- Local filesystem only (artifact trees under `00-supporting-files/data/audio-extraction-review/`)
+- Local filesystem only.
+  - Raw/derived artifacts live under `00-supporting-files/data/` (for example `00-supporting-files/data/extractions/extractions.jsonl`, `00-supporting-files/data/extractions/metrics.jsonl`, and `00-supporting-files/data/chat_frames_test_30s_color/`).
+  - Source video path references external local folder `/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/large-files/...` from `00-supporting-files/data/full_chat_frames_report.json`.
 
 **Caching:**
-- Local artifact reuse/checkpoint behavior via prior files (`allow_transcript_checkpoint_reuse`) in `00-supporting-files/data/audio-extraction-review/runs/run-20260222T030354Z-206b1285.json`
+- Local file cache directories only (`00-supporting-files/data/keyframe_cache/`, `00-supporting-files/data/cropped_keyframe_cache/`, `00-supporting-files/data/ai_invasion_1_keyframe_cache/`).
 
 ## Authentication & Identity
 
 **Auth Provider:**
-- Custom/local token usage only (no OAuth/IdP integration detected)
-  - Implementation: pipeline config fields for local API key and optional Hugging Face token dependency in run/log metadata (`00-supporting-files/data/audio-extraction-review/runs/run-20260222T030354Z-206b1285.json`, `00-supporting-files/data/audio-extraction-review/logs/transcription-20260222T023330Z-f9bdbf0d.jsonl`)
+- API-key based provider auth for LLM services.
+  - Implementation: environment variables in `00-supporting-files/data/sample.env.file`, plus runtime key passing in `00-dev-log/2026-02-01.md`.
 
 ## Monitoring & Observability
 
 **Error Tracking:**
-- None (no Sentry/Bugsnag/etc. detected)
+- None detected.
 
 **Logs:**
-- Structured JSONL stage logs per run in `00-supporting-files/data/audio-extraction-review/logs/*.jsonl`
+- File-based run metrics and failure capture pattern.
+  - Execution token/latency metrics in `00-supporting-files/data/extractions/metrics.jsonl`.
+  - Failure logging strategy discussed with `failed_extractions_out` in `00-dev-log/2026-02-09.md`.
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- Not detected (local execution paths and localhost service endpoints only)
+- Not detected (no deployment manifests or hosting configs in tracked files).
 
 **CI Pipeline:**
-- None detected (`.github/workflows/` not present)
+- None detected (no `.github/workflows/*`, GitLab CI, or other CI config files present).
 
 ## Environment Configuration
 
 **Required env vars:**
-- Hugging Face access token for WhisperX diarization (exact variable name not present in tracked source; missing token causes fallback) evidenced by `missing_huggingface_token` in `00-supporting-files/data/audio-extraction-review/logs/transcription-20260222T023330Z-f9bdbf0d.jsonl`
-- Local OpenAI-compatible API key value is expected by segmentation config (`api_key` key) in `00-supporting-files/data/audio-extraction-review/runs/run-20260222T030354Z-206b1285.json`
+- `OPENAI_API_TYPE`
+- `OPENAI_API_VERSION`
+- `AZURE_OPENAI_ENDPOINT`
+- `AZURE_OPENAI_API_KEY`
+- `NIMS_BASE_URL`
+- `NIMS_API_KEY`
+- Variables are defined as template placeholders in `00-supporting-files/data/sample.env.file`.
 
 **Secrets location:**
-- `.env` file present at `00-supporting-files/data/.env` (contents intentionally not read)
-- sample env template present at `00-supporting-files/data/sample.env.file` (contents intentionally not read)
+- `.env` file present at `00-supporting-files/data/.env` (values intentionally not read).
 
 ## Webhooks & Callbacks
 
 **Incoming:**
-- None detected
+- None detected.
 
 **Outgoing:**
-- None detected
+- None detected.
 
 ---
 

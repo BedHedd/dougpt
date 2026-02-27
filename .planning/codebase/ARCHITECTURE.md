@@ -4,99 +4,101 @@
 
 ## Pattern Overview
 
-**Overall:** Hybrid notebook-orchestrated pipeline with a small typed domain package.
+**Overall:** Workspace-style research architecture (meta-repo + git worktrees + file-based data pipeline)
 
 **Key Characteristics:**
-- Pipeline orchestration logic is implemented in a single notebook at `02-worktrees/audio-extraction-review/audio-extraction.ipynb`.
-- Reusable typed transcript schemas are centralized in `src/transcription/models.py` and re-exported by `src/transcription/__init__.py`.
-- Durable pipeline artifacts are written to filesystem data folders under `00-supporting-files/data/audio-extraction-review/`.
+- Keep shared assets and project governance in repository root (`README.md`, `.gitmodules`, `.gitignore`) and run experiments in isolated worktrees under `02-worktrees/`.
+- Drive implementation from notebook and marimo workflows (`02-worktrees/chat-extraction/chat-extraction.py`, `02-worktrees/chat-extraction/*.ipynb`) instead of a package-style `src/` module tree.
+- Persist pipeline state as files in `00-supporting-files/data/` (images, reports, JSONL outputs) and use development logs in `00-dev-log/` to document decisions and failure modes.
 
 ## Layers
 
-**Domain Schema Layer:**
-- Purpose: Define validated transcript and metadata contracts.
-- Location: `src/transcription/models.py`
-- Contains: Pydantic `BaseModel` classes (`WordTimestamp`, `TranscriptSegment`, `TranscriptResult`, `TranscriptMetadata`).
-- Depends on: `pydantic.BaseModel` and `pydantic.Field` from `src/transcription/models.py`.
-- Used by: External callers importing from `src/transcription/__init__.py` and notebook/prototype code consuming transcript artifacts.
+**Workspace Orchestration Layer:**
+- Purpose: Define repo operating model, submodule setup, and worktree workflow.
+- Location: `README.md`, `.gitmodules`, `.gitignore`, `02-worktrees/README.md`
+- Contains: Submodule wiring, git worktree instructions, ignore rules.
+- Depends on: Git and local filesystem conventions.
+- Used by: All experiment and data workflows.
 
-**Package API Layer:**
-- Purpose: Provide stable import surface for transcription model types.
-- Location: `src/transcription/__init__.py`
-- Contains: Re-exports plus `__all__` public API list.
-- Depends on: `src.transcription.models`.
-- Used by: Any code importing `src.transcription` instead of deep module paths.
+**Experiment Execution Layer:**
+- Purpose: Execute frame extraction, model prompting, and iterative analysis logic.
+- Location: `02-worktrees/chat-extraction/chat-extraction.py`, `02-worktrees/chat-extraction/chat-extraction-script.ipynb`, `02-worktrees/chat-extraction/extraction-review.ipynb`, `02-worktrees/00-experiments/sandbox.ipynb`
+- Contains: Marimo app cells, notebook exploration, OpenCV/ffmpeg probes, model prompt code.
+- Depends on: Python runtime and dependencies declared in `02-worktrees/chat-extraction/pyproject.toml` and `02-worktrees/00-experiments/pyproject.toml`.
+- Used by: Manual runs during extraction and evaluation iterations.
 
-**Pipeline Orchestration Layer:**
-- Purpose: Run stage-based processing (extract -> transcribe -> segment -> export).
-- Location: `02-worktrees/audio-extraction-review/audio-extraction.ipynb`
-- Contains: Config map, stage functions, run coordination (`run_pipeline`), and execution cells.
-- Depends on: Filesystem paths resolved from `00-supporting-files/`, local binaries (ffmpeg/ffprobe), and local model endpoints configured in notebook config.
-- Used by: Manual notebook execution.
+**Data Artifact Layer:**
+- Purpose: Store reproducible intermediate and output artifacts from extraction runs.
+- Location: `00-supporting-files/data/`
+- Contains: Frame sets (`00-supporting-files/data/chat_frames_test_30s_color/`), extraction outputs (`00-supporting-files/data/extractions/extractions.jsonl`, `00-supporting-files/data/extractions/metrics.jsonl`, `00-supporting-files/data/extractions/failed_extractions.jsonl`), and run reports (`00-supporting-files/data/chat_frames_test_30s_color/report.json`, `00-supporting-files/data/full_chat_frames_report.json`).
+- Depends on: Extraction jobs in `02-worktrees/chat-extraction/chat-extraction.py` and external video files referenced in report JSON.
+- Used by: Review notebooks and dev logs.
 
-**Artifact Storage Layer:**
-- Purpose: Persist run logs, transcripts, segments, and run metadata as local files.
-- Location: `00-supporting-files/data/audio-extraction-review/`
-- Contains: `audio/`, `logs/`, `runs/`, `segments/`, `transcripts/` artifacts.
-- Depends on: Pipeline writing JSON/JSONL/Markdown outputs.
-- Used by: Subsequent reruns, review workflows, and offline analysis.
+**Research Traceability Layer:**
+- Purpose: Capture rationale, experiments, regressions, and mitigation notes.
+- Location: `00-dev-log/*.md`
+- Contains: Daily entries, screenshots, command snippets, observed model behavior.
+- Depends on: Outputs from `00-supporting-files/images/` and `00-supporting-files/data/`.
+- Used by: Human planning and phase scoping.
 
 ## Data Flow
 
-**Audio Extraction Review Flow:**
+**Chat Extraction Pipeline:**
 
-1. `run_pipeline` in `02-worktrees/audio-extraction-review/audio-extraction.ipynb` resolves project paths and input media (`resolve_project_paths`, `discover_inputs`).
-2. Extraction stage writes normalized audio artifacts and extraction logs under `00-supporting-files/data/audio-extraction-review/audio/` and `00-supporting-files/data/audio-extraction-review/logs/`.
-3. Transcription stage produces transcript JSON artifacts in `00-supporting-files/data/audio-extraction-review/transcripts/` and stage logs in `00-supporting-files/data/audio-extraction-review/logs/`.
-4. Segmentation stage optionally calls a local model endpoint, validates segment chronology, and builds segment records in memory.
-5. Export stage writes `segments.json` and `segments.md` in `00-supporting-files/data/audio-extraction-review/segments/`.
-6. Run metadata stage writes final run snapshot JSON to `00-supporting-files/data/audio-extraction-review/runs/`.
+1. Locate project roots and data directories in `02-worktrees/chat-extraction/chat-extraction.py` by resolving `00-supporting-files` and `large-files` parents.
+2. Generate or reference frame artifacts and frame-selection reports under `00-supporting-files/data/chat_frames_test_30s_color/` and `00-supporting-files/data/full_chat_frames_report.json`.
+3. Send frame content to local or OpenAI-compatible model endpoints in `02-worktrees/chat-extraction/chat-extraction.py` and serialize parsed chat outputs to `00-supporting-files/data/extractions/extractions.jsonl` with metrics in `00-supporting-files/data/extractions/metrics.jsonl`.
 
 **State Management:**
-- State is file-backed and run-scoped: runtime dictionaries are ephemeral, while durable state is appended or written to artifact files in `00-supporting-files/data/audio-extraction-review/`.
+- Use filesystem-backed state only (JSON, JSONL, PNG) in `00-supporting-files/data/`; no database, queue, or persistent service layer is detected.
 
 ## Key Abstractions
 
-**Transcript Schema Models:**
-- Purpose: Represent typed ASR output and metadata with validation.
-- Examples: `src/transcription/models.py`
-- Pattern: Pydantic models with explicit fields, defaults, and descriptions.
+**Path Discovery Abstraction:**
+- Purpose: Make notebooks/worktrees relocatable by deriving the canonical project data path at runtime.
+- Examples: `02-worktrees/chat-extraction/chat-extraction.py`, `02-worktrees/old-master/02-development/chat-extraction/chat-extraction.py`
+- Pattern: Walk upward from current file/cwd until `00-supporting-files` exists, then derive sibling paths.
 
-**Stage Functions:**
-- Purpose: Isolate pipeline responsibilities by stage.
-- Examples: `run_extraction_stage`, `run_transcription_stage`, `run_segmentation_stage`, `run_segment_export_stage` in `02-worktrees/audio-extraction-review/audio-extraction.ipynb`.
-- Pattern: Pure-ish functions receiving config/paths/run_id and returning structured stage payloads (`records`, `failures`, `duration_seconds`).
+**Frame Artifact Abstraction:**
+- Purpose: Represent sampled chat states as deterministic files tied to timestamp and frame index.
+- Examples: `00-supporting-files/data/chat_frames_test_30s_color/frame_000023_t000007.667.png`, `00-supporting-files/data/chat_frames_test_30s_color/report.json`
+- Pattern: Use filename schema `frame_{index}_t{seconds}.png` and pair with report metadata containing `corr`, `dy_step_px`, and `saved_path`.
 
-**Artifact Contracts:**
-- Purpose: Preserve reproducible outputs and resumability across runs.
-- Examples: `00-supporting-files/data/audio-extraction-review/runs/run-*.json`, `00-supporting-files/data/audio-extraction-review/logs/*.jsonl`, `00-supporting-files/data/audio-extraction-review/segments/segments.json`.
-- Pattern: JSON/JSONL/Markdown outputs keyed by run ID and stage.
+**Extraction Record Abstraction:**
+- Purpose: Represent OCR/VLM output and run telemetry separately for downstream analysis.
+- Examples: `00-supporting-files/data/extractions/extractions.jsonl`, `00-supporting-files/data/extractions/metrics.jsonl`
+- Pattern: Keep semantic chat output and operational metrics in separate append-friendly JSONL files.
 
 ## Entry Points
 
-**Notebook Orchestration Entry Point:**
-- Location: `02-worktrees/audio-extraction-review/audio-extraction.ipynb`
-- Triggers: Manual execution of notebook cells (`RUN_RESULT = run_pipeline(RUN_CONFIG)`).
-- Responsibilities: End-to-end media discovery, extraction, transcription, segmentation, export, and run metadata writing.
+**Repository Entry:**
+- Location: `README.md`
+- Triggers: Developer onboarding in repository root.
+- Responsibilities: Explain clone/submodule setup and base repo purpose.
 
-**Package Import Entry Point:**
-- Location: `src/transcription/__init__.py`
-- Triggers: Python imports (`from src.transcription import TranscriptResult`).
-- Responsibilities: Expose stable model API without requiring deep-module imports.
+**Worktree Workflow Entry:**
+- Location: `02-worktrees/README.md`
+- Triggers: Creating and managing isolated branches for experiments.
+- Responsibilities: Define git worktree commands and expected directory model.
+
+**Primary Execution Entry:**
+- Location: `02-worktrees/chat-extraction/chat-extraction.py`
+- Triggers: Running marimo app in the `chat-extraction` worktree.
+- Responsibilities: Orchestrate path resolution, frame-level experiments, model requests, and structured extraction trials.
 
 ## Error Handling
 
-**Strategy:** Stage-local failure capture with non-destructive continuation and persisted failure details.
+**Strategy:** Interactive recovery and artifact inspection.
 
 **Patterns:**
-- Stage functions return structured `failures` arrays instead of raising unhandled exceptions as the only mechanism (notebook pipeline functions in `02-worktrees/audio-extraction-review/audio-extraction.ipynb`).
-- Smoke-check gating short-circuits segmentation and records actionable guidance (`local_model_smoke_check`, `build_segmentation_guidance` in `02-worktrees/audio-extraction-review/audio-extraction.ipynb`).
+- Check subprocess results and stderr directly in notebook/app cells (for example ffmpeg invocation paths in `02-worktrees/chat-extraction/chat-extraction.py`).
+- Capture failed extraction metadata into dedicated files (`00-supporting-files/data/extractions/failed_extractions.jsonl`) and document root-cause analysis in `00-dev-log/2026-02-09.md`.
 
 ## Cross-Cutting Concerns
 
-**Logging:** JSONL append-based logging via helper functions in `02-worktrees/audio-extraction-review/audio-extraction.ipynb`, persisted under `00-supporting-files/data/audio-extraction-review/logs/`.
-**Validation:** Schema validation for transcript models in `src/transcription/models.py` plus segment normalization/validation routines in `02-worktrees/audio-extraction-review/audio-extraction.ipynb`.
-**Authentication:** No centralized application auth layer detected; notebook config includes local endpoint/API key parameters for segmentation in `02-worktrees/audio-extraction-review/audio-extraction.ipynb`.
+**Logging:** File-first logs through `00-dev-log/*.md` and JSONL metrics in `00-supporting-files/data/extractions/metrics.jsonl`.
+**Validation:** Use schema-oriented parsing patterns in marimo extraction code (`pydantic` models in `02-worktrees/chat-extraction/chat-extraction.py`) and strict JSON-oriented prompts captured in `00-dev-log/2026-02-09.md`.
+**Authentication:** Load environment config in experiment code (`dotenv` import in `02-worktrees/chat-extraction/chat-extraction.py`); keep env values outside committed code (for example `.env` exists at `00-supporting-files/data/.env`).
 
 ---
 

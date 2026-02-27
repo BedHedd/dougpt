@@ -5,77 +5,86 @@
 ## Naming Patterns
 
 **Files:**
-- Use `snake_case.py` for module filenames, as shown in `src/transcription/models.py` and package initializer `src/transcription/__init__.py`.
+- Use kebab-case for marimo notebook exports, shown by `02-worktrees/chat-extraction/chat-extraction.py`.
+- Use lowercase with underscores for Python module files when present in package-style code, shown by deleted-but-tracked paths `src/transcription/__init__.py` and `src/transcription/models.py` in `git status`.
 
 **Functions:**
-- Not applicable in current source slice; no functions are defined in `src/transcription/models.py` or `src/transcription/__init__.py`.
+- Use marimo cell function signature `def _(...):` for notebook-exported execution blocks in `02-worktrees/chat-extraction/chat-extraction.py`.
+- Use snake_case for helper and utility functions inside cells, e.g. `_safe_clamped_bbox`, `draw_emote_bboxes_safe`, `_parse_packets_pts`, `reduce_chat_frames_by_scroll_color` in `02-worktrees/chat-extraction/chat-extraction.py`.
 
 **Variables:**
-- Use `snake_case` for model attributes (`language_probability`, `duration_seconds`, `batch_size`) in `src/transcription/models.py`.
+- Use snake_case for locals and parameters (`supporting_files`, `project_parent`, `bottom_change_thr`) in `02-worktrees/chat-extraction/chat-extraction.py`.
+- Use UPPER_CASE for cell-local config constants (`MODEL`, `FRAMES_DIR`, `BASE_URL`, `API_KEY`) in `02-worktrees/chat-extraction/chat-extraction.py`.
 
 **Types:**
-- Use `PascalCase` for Pydantic model classes (`WordTimestamp`, `TranscriptSegment`, `TranscriptResult`, `TranscriptMetadata`) in `src/transcription/models.py`.
+- Use PascalCase for dataclasses and Pydantic models (`KeyframeReport`) in `02-worktrees/chat-extraction/chat-extraction.py`.
+- Use explicit type aliases for path-like and compound types (`PathLike = Union[str, Path]`) in `02-worktrees/chat-extraction/chat-extraction.py`.
 
 ## Code Style
 
 **Formatting:**
-- Formatter configuration file not detected (no `pyproject.toml`, `ruff.toml`, `setup.cfg`, or `tox.ini` in repository root).
-- Keep line lengths moderate and wrap long calls with hanging indentation, matching `Field(...)` blocks in `src/transcription/models.py`.
+- Tool used: No formatter configuration detected (`.prettierrc*`, `eslint.config.*`, `biome.json`, `ruff.toml`, `pytest.ini` are not present at repo root).
+- Practical rule: Keep style compatible with current source in `02-worktrees/chat-extraction/chat-extraction.py` (4-space indentation, trailing commas in multiline calls, typed signatures where logic is reusable).
 
 **Linting:**
-- Linter configuration file not detected in tracked root files (`.gitignore`, `README.md`, `.gitmodules`).
-- `.gitignore` includes `.ruff_cache/`, indicating Ruff usage is expected locally even though project-level rules are not committed (`.gitignore`).
+- Tool used: Not detected in repository-level config.
+- Practical rule: Follow existing typed-Python style in `02-worktrees/chat-extraction/chat-extraction.py` because no enforced lint config is present.
 
 ## Import Organization
 
 **Order:**
-1. Start with a module docstring (`src/transcription/models.py`, `src/transcription/__init__.py`).
-2. Use grouped import statements directly under the docstring (`from pydantic import BaseModel, Field` in `src/transcription/models.py`).
-3. Export public API via explicit import list and `__all__` in package init (`src/transcription/__init__.py`).
+1. Keep marimo bootstrap import at top-level (`import marimo`) in `02-worktrees/chat-extraction/chat-extraction.py`.
+2. Place most imports inside the cell where they are used (`from pathlib import Path`, `from dotenv import load_dotenv`, `import cv2`) in `02-worktrees/chat-extraction/chat-extraction.py`.
+3. Group standard library before third-party inside a cell (`import json`, `import re`, then other libs) in `02-worktrees/chat-extraction/chat-extraction.py`.
 
 **Path Aliases:**
-- No alias system detected; imports use explicit package paths such as `from src.transcription.models import ...` in `src/transcription/__init__.py`.
+- Not detected. Use direct module imports and `pathlib.Path` composition as shown in `02-worktrees/chat-extraction/chat-extraction.py`.
 
 ## Error Handling
 
 **Patterns:**
-- Error-handling conventions are not represented in committed Python source; only schema definitions are present in `src/transcription/models.py`.
-- Use Pydantic validation as the current defensive boundary for data shape and type enforcement (`src/transcription/models.py`).
+- Wrap environment-dependent path resolution with narrow exceptions and fallback behavior (`try: start = Path(__file__).resolve() except NameError: start = Path.cwd()`) in `02-worktrees/chat-extraction/chat-extraction.py`.
+- Convert subprocess failures into domain-level `RuntimeError` with actionable context in `_run` (`FileNotFoundError` and `subprocess.CalledProcessError`) in `02-worktrees/chat-extraction/chat-extraction.py`.
+- Validate file/path preconditions early and raise specific exceptions (`FileNotFoundError`, `ValueError`) before expensive work in `keyframe_report` in `02-worktrees/chat-extraction/chat-extraction.py`.
 
 ## Logging
 
-**Framework:** console
+**Framework:** `print`
 
 **Patterns:**
-- Logging pattern not detected in committed runtime modules (`src/transcription/models.py`, `src/transcription/__init__.py`).
+- Use lightweight progress prints during long loops (`[reduce] decoded=...`) in `reduce_chat_frames_by_scroll_color` at `02-worktrees/chat-extraction/chat-extraction.py`.
+- Print diagnostic metadata for environment troubleshooting (`cv2.__file__`, `sys.executable`) in `02-worktrees/chat-extraction/chat-extraction.py`.
+- Prefer structured JSON artifact output for durable debugging (`report.json`) rather than only console output in `02-worktrees/chat-extraction/chat-extraction.py`.
 
 ## Comments
 
 **When to Comment:**
-- Use concise module/class docstrings to describe intent, as in `src/transcription/models.py` and `src/transcription/__init__.py`.
-- Prefer descriptive `Field(description=...)` metadata for attribute-level documentation in `src/transcription/models.py`.
+- Comment non-obvious algorithm choices and fallback intent (packets vs frames probing, bounds-clamping rationale) in `02-worktrees/chat-extraction/chat-extraction.py`.
+- Keep exploratory cells commented instead of deleted for reproducibility during iteration in `02-worktrees/chat-extraction/chat-extraction.py`.
 
 **JSDoc/TSDoc:**
-- Not applicable; repository code in scope is Python and uses Python docstrings (`src/transcription/models.py`).
+- Not applicable (Python codebase). Use Python docstrings for reusable helpers (`keyframe_report`, `extract_keyframes`) as shown in `02-worktrees/chat-extraction/chat-extraction.py`.
 
 ## Function Design
 
 **Size:**
-- Not applicable in current committed Python modules (`src/transcription/models.py`, `src/transcription/__init__.py`).
+- Keep marimo cell wrappers short and return only shared artifacts.
+- Put complex logic into named helpers inside cells (for example `reduce_chat_frames_by_scroll_color` and `keyframe_report`) in `02-worktrees/chat-extraction/chat-extraction.py`.
 
 **Parameters:**
-- Not applicable in current committed Python modules (`src/transcription/models.py`, `src/transcription/__init__.py`).
+- Use keyword-rich signatures with defaults for tuning-heavy pipelines (`lines_per_keep`, `min_corr`, `bottom_change_thr`) in `02-worktrees/chat-extraction/chat-extraction.py`.
 
 **Return Values:**
-- Not applicable in current committed Python modules (`src/transcription/models.py`, `src/transcription/__init__.py`).
+- Return tuples from cells for dependency wiring (`return (video_dir,)`, `return (compact_batch,)`) in `02-worktrees/chat-extraction/chat-extraction.py`.
+- Return typed domain objects or explicit lists from helpers (`KeyframeReport`, `list[Path]`, `list[KeptFrame]`) in `02-worktrees/chat-extraction/chat-extraction.py`.
 
 ## Module Design
 
 **Exports:**
-- Define a narrow package API with explicit re-exports and `__all__`, matching `src/transcription/__init__.py`.
+- Marimo app modules export behavior by `@app.cell` dependencies and terminate with `if __name__ == "__main__": app.run()` in `02-worktrees/chat-extraction/chat-extraction.py`.
 
 **Barrel Files:**
-- Use package-level aggregator modules (`src/transcription/__init__.py`) to centralize public imports from implementation modules (`src/transcription/models.py`).
+- Not detected. No explicit re-export modules are present.
 
 ---
 

@@ -5,98 +5,103 @@
 ## Directory Layout
 
 ```text
-dougpt/
-├── src/                      # Reusable Python package code
-├── 00-supporting-files/      # Versioned artifacts, sample data, images, reports
-├── 00-dev-log/               # Dated development notes
-├── 01-dev-onboarding/        # Git submodule mountpoint
-├── 02-worktrees/             # Worktree documentation and local experiment worktrees
-├── .planning/codebase/       # Generated codebase mapping documents
-├── .foam/templates/          # Note templates
-├── .gitmodules               # Submodule declarations
-├── .gitignore                # Ignore and workspace hygiene rules
-└── README.md                 # Repository overview and setup notes
+[project-root]/
+├── 00-dev-log/                    # Dated research and progress notes
+├── 00-supporting-files/           # Data artifacts and image snapshots
+├── 01-dev-onboarding/             # Git submodule slot (currently not populated)
+├── 02-worktrees/                  # Active and archived experimental worktrees
+├── .planning/codebase/            # GSD codebase mapping docs
+├── README.md                      # Repo-level onboarding and purpose
+├── .gitmodules                    # Submodule configuration
+└── .gitignore                     # Root ignore policy (includes worktree content)
 ```
 
 ## Directory Purposes
 
-**`src/`:**
-- Purpose: Home for reusable Python source modules.
-- Contains: Package directory `src/transcription/`.
-- Key files: `src/transcription/models.py`, `src/transcription/__init__.py`.
+**00-dev-log:**
+- Purpose: Maintain chronological engineering notes and experiment outcomes.
+- Contains: Daily markdown files and an entry template.
+- Key files: `00-dev-log/00-template.md`, `00-dev-log/2026-02-09.md`, `00-dev-log/2026-01-18.md`
 
-**`00-supporting-files/`:**
-- Purpose: Store project artifacts and reference assets used by experiments/pipelines.
-- Contains: `00-supporting-files/data/` datasets and outputs, `00-supporting-files/images/` snapshots.
-- Key files: `00-supporting-files/data/audio-extraction-review/segments/segments.json`, `00-supporting-files/data/audio-extraction-review/segments/segments.md`.
+**00-supporting-files:**
+- Purpose: Store all durable artifacts used by experiments.
+- Contains: `data/` for extraction inputs/outputs and `images/` for manual snapshots.
+- Key files: `00-supporting-files/data/full_chat_frames_report.json`, `00-supporting-files/data/chat_frames_test_30s_color/report.json`, `00-supporting-files/data/extractions/extractions.jsonl`
 
-**`00-dev-log/`:**
-- Purpose: Chronological engineering logs.
-- Contains: Date-stamped Markdown entries.
-- Key files: `00-dev-log/2026-02-09.md`, `00-dev-log/00-template.md`.
+**01-dev-onboarding:**
+- Purpose: Submodule mount point for onboarding materials.
+- Contains: Gitlink path only in current checkout.
+- Key files: `.gitmodules`, `README.md`
 
-**`02-worktrees/`:**
-- Purpose: Document and host git worktrees for parallel development.
-- Contains: `02-worktrees/README.md` plus locally created worktree directories (mostly ignored by git).
-- Key files: `02-worktrees/README.md`, tracked notebook `02-worktrees/audio-extraction-review/audio-extraction.ipynb`.
+**02-worktrees:**
+- Purpose: Isolate branch-specific experiments from root workspace.
+- Contains: Multiple worktree directories, each with its own Python project/notebooks.
+- Key files: `02-worktrees/README.md`, `02-worktrees/chat-extraction/chat-extraction.py`, `02-worktrees/00-experiments/pyproject.toml`, `02-worktrees/old-master/02-development/chat-extraction/chat-extraction.py`
+
+**.planning/codebase:**
+- Purpose: Store architecture/quality/stack maps for GSD planning and execution.
+- Contains: Mapper-generated markdown documents.
+- Key files: `.planning/codebase/ARCHITECTURE.md`, `.planning/codebase/STRUCTURE.md`
 
 ## Key File Locations
 
 **Entry Points:**
-- `02-worktrees/audio-extraction-review/audio-extraction.ipynb`: Notebook entrypoint for extraction/transcription/segmentation pipeline execution.
-- `src/transcription/__init__.py`: Python package import entrypoint for transcript schema types.
+- `README.md`: Root onboarding and repository intent.
+- `02-worktrees/README.md`: Worktree lifecycle commands and conventions.
+- `02-worktrees/chat-extraction/chat-extraction.py`: Primary runnable marimo experiment app.
 
 **Configuration:**
-- `README.md`: Setup and submodule initialization instructions.
-- `.gitignore`: Ignore policy, including worktree contents and Python artifacts.
-- `.gitmodules`: Submodule binding for `01-dev-onboarding`.
+- `.gitmodules`: Submodule path and remote definition.
+- `.gitignore`: Root-wide ignore rules, including `02-worktrees/*` content policy.
+- `02-worktrees/chat-extraction/pyproject.toml`: Dependencies for extraction worktree.
+- `02-worktrees/00-experiments/pyproject.toml`: Dependencies for sandbox worktree.
 
 **Core Logic:**
-- `src/transcription/models.py`: Transcript domain models and metadata contracts.
-- `02-worktrees/audio-extraction-review/audio-extraction.ipynb`: Stage functions and run orchestration.
+- `02-worktrees/chat-extraction/chat-extraction.py`: Frame extraction, model prompting, structured output experiments.
+- `02-worktrees/old-master/02-development/chat-extraction/chat-extraction.py`: Legacy snapshot of the same workflow in prior layout.
 
 **Testing:**
-- Not detected: no `tests/` directory and no tracked `*.test.py`/`test_*.py` files in this worktree.
+- Not detected (no committed `tests/` directory, `*.test.*`, or `*.spec.*` files in the analyzed tracked structure).
 
 ## Naming Conventions
 
 **Files:**
-- Python modules use `snake_case.py` (`src/transcription/models.py`).
-- Organizational top-level directories use numeric prefixes (`00-dev-log/`, `00-supporting-files/`, `02-worktrees/`).
-- Log/docs use date or run-ID naming (`00-dev-log/2026-02-09.md`, `00-supporting-files/data/audio-extraction-review/runs/run-20260222T030354Z-206b1285.json`).
+- Use numeric prefixes to encode top-level intent (`00-dev-log`, `00-supporting-files`, `01-dev-onboarding`, `02-worktrees`).
+- Name daily logs as ISO dates (`00-dev-log/2026-02-09.md`).
+- Name extracted frames with index and timestamp (`00-supporting-files/data/chat_frames_test_30s_color/frame_000053_t000017.667.png`).
 
 **Directories:**
-- Domain packages use lowercase names (`src/transcription/`).
-- Artifact directories are stage-oriented (`00-supporting-files/data/audio-extraction-review/logs/`, `00-supporting-files/data/audio-extraction-review/transcripts/`, `00-supporting-files/data/audio-extraction-review/segments/`).
+- Use kebab-case for feature/worktree directories (`02-worktrees/chat-extraction`, `02-worktrees/extraction-exploration`).
+- Group artifacts by domain (`00-supporting-files/data/extractions`, `00-supporting-files/data/chat_frames_test_30s_color`).
 
 ## Where to Add New Code
 
 **New Feature:**
-- Primary code: Add new reusable modules under `src/` (for example `src/<domain>/`), following `src/transcription/` package structure.
-- Tests: Create a new `tests/` directory at repo root (for example `tests/transcription/`) because no test directory is currently present.
+- Primary code: Add to a dedicated worktree directory under `02-worktrees/<feature-name>/` with a local `pyproject.toml`.
+- Tests: Add `tests/` under the same worktree directory (for example `02-worktrees/<feature-name>/tests/`) since no shared root testing harness is present.
 
 **New Component/Module:**
-- Implementation: Place domain-specific typed models in `src/<domain>/models.py` and re-export public symbols in `src/<domain>/__init__.py`.
+- Implementation: Place implementation in the relevant worktree root (for example `02-worktrees/chat-extraction/`) and keep data products in `00-supporting-files/data/<new-artifact-group>/`.
 
 **Utilities:**
-- Shared helpers: Place shared Python helpers under a dedicated package in `src/` (for example `src/common/` or `src/utils/`) rather than embedding reusable logic in notebooks.
+- Shared helpers: If reusable across experiments, add a small utility module in the active worktree first (for example `02-worktrees/chat-extraction/utils.py`), then promote only stable utilities to a dedicated shared directory at root (for example `02-development/` when that tree exists in active branch).
 
 ## Special Directories
 
-**`02-worktrees/`:**
-- Purpose: Local multi-branch working directories and worktree instructions.
-- Generated: Yes (worktree contents are locally generated by `git worktree add`).
-- Committed: Partially (`02-worktrees/README.md` and one tracked notebook are committed; most contents are ignored by `.gitignore`).
+**02-worktrees:**
+- Purpose: Parallel branch workspaces with independent files and environments.
+- Generated: Partially (directory tracked; contents mostly excluded by root `.gitignore`).
+- Committed: `02-worktrees/README.md` is committed; most branch worktree contents are intentionally not committed in root.
 
-**`01-dev-onboarding/`:**
-- Purpose: External onboarding content mounted as a git submodule.
-- Generated: No.
-- Committed: Yes (submodule reference committed via `.gitmodules`; submodule content lives in external repository).
-
-**`.planning/codebase/`:**
-- Purpose: Generated architecture/stack/conventions/concerns mapping docs for GSD workflows.
+**00-supporting-files/data:**
+- Purpose: Durable extraction inputs/outputs and reports.
 - Generated: Yes.
-- Committed: Yes when mapping outputs are staged and committed.
+- Committed: Yes (reports and extraction outputs are present in repository).
+
+**.venv:**
+- Purpose: Local Python environment.
+- Generated: Yes.
+- Committed: No (ignored via `.gitignore`).
 
 ---
 
