@@ -74,6 +74,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Deterministic Video Ingestion | Complete | Completed | 2026-02-27 |
-| 2. Local Speech Transcript Extraction | 0/2 | Planned | - |
+| 2. Local Speech Transcript Extraction | 2/2 | Completed | 2026-02-28 |
 | 3. Alignment and Dataset Curation | 0/TBD | Not started | - |
 | 4. Reproducible Training and End-to-End Ops | 0/TBD | Not started | - |
