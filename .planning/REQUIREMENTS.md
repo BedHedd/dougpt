@@ -16,8 +16,8 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Transcript Extraction
 
 - [x] **ASR-01**: User can extract DougDoug-only audio tracks from stream videos using local tooling.
-- [ ] **ASR-02**: User can generate timestamped speech transcripts locally without paid APIs.
-- [ ] **ASR-03**: User can export normalized transcript segments with confidence metadata for alignment.
+- [x] **ASR-02**: User can generate timestamped speech transcripts locally without paid APIs.
+- [x] **ASR-03**: User can export normalized transcript segments with confidence metadata for alignment.
 
 ### Alignment and Curation
 
@@ -72,8 +72,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ING-02 | Phase 1 | Completed |
 | ING-03 | Phase 1 | Completed |
 | ASR-01 | Phase 2 | Complete |
-| ASR-02 | Phase 2 | Pending |
-| ASR-03 | Phase 2 | Pending |
+| ASR-02 | Phase 2 | Complete |
+| ASR-03 | Phase 2 | Complete |
 | ALG-01 | Phase 3 | Pending |
 | ALG-02 | Phase 3 | Pending |
 | ALG-03 | Phase 3 | Pending |

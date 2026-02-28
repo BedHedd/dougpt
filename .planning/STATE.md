@@ -10,11 +10,11 @@ See: `.planning/PROJECT.md` (updated 2026-02-26)
 ## Current Position
 
 Phase: 2 of 4 (Local Speech Transcript Extraction)
-Plan: 1 of 2 in current phase
-Status: In Progress
-Last activity: 2026-02-28 - Plan 02-01 (Audio Prep Worktree) completed.
+Plan: 2 of 2 in current phase
+Status: Complete
+Last activity: 2026-02-28 - Phase 2 complete - ASR pipeline built.
 
-Progress: [███░░░░░░░] 35%
+Progress: [████░░░░░░] 50%
 
 ## Performance Metrics
 
@@ -44,6 +44,9 @@ Recent decisions affecting current work:
 - v1 scope excludes realtime/live workflows and paid external services.
 - Audio prep uses spectral analysis (flatness, centroid, bandwidth) for overlap detection heuristic (02-01).
 - Quality flags in prep manifests enable downstream filtering without dropping audio (02-01).
+- faster-whisper selected as primary ASR engine with CTranslate2 backend (02-02).
+- whisperX alignment and pyannote diarization are optional (require ROCm torch and HF_TOKEN) (02-02).
+- Default confidence threshold 0.70 for export filtering (02-02).
 
 ### Pending Todos
 
