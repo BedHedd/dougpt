@@ -41,46 +41,40 @@
 | Training orchestrator | Fine-tune base model from curated dataset and log reproducible runs | TRL `SFTTrainer` + PEFT LoRA + MLflow run tracking |
 | Evaluation harness | Run offline evals/regression checks before promoting a checkpoint | Fixed prompt suite + metric scripts + artifact comparator |
 
-## Recommended Project Structure
+## Recommended Project Structure (Worktree Convention)
 
 ```text
-src/
-├── contracts/                # Pydantic schemas and dataset contracts
-│   ├── events.py             # Raw/staged/curated record models
-│   └── quality.py            # Quality gate result models
-├── ingest/                   # Source adapters and canonical manifesting
-│   ├── video_sources.py      # yt-dlp and local file source adapters
-│   └── manifest.py           # Deterministic content identity logic
-├── extract/                  # Media and transcript extraction stages
-│   ├── media.py              # ffmpeg audio/video derivative pipeline
-│   └── asr.py                # Whisper/WhisperX transcription runners
-├── align/                    # Temporal alignment and scoring
-│   ├── candidate_windows.py  # Speech-to-chat candidate generation
-│   └── ranker.py             # Pair scoring and thresholding
-├── curate/                   # Cleaning, filtering, balancing, split logic
-│   ├── dedupe.py             # Near-duplicate removal and spam filters
-│   └── export.py             # Parquet/JSONL export for training
-├── train/                    # Fine-tune and eval entrypoints
-│   ├── sft.py                # TRL SFTTrainer + PEFT config
-│   └── evaluate.py           # Offline eval and regression reports
-└── infra/
-    ├── dvc/                  # dvc.yaml stage definitions
-    └── tracking.py           # MLflow helpers and run metadata binding
-
-data/
-├── raw/                      # Immutable downloaded/source assets
-├── staged/                   # Extracted transcripts/chat normalized records
-├── curated/                  # Final train-ready datasets
-└── artifacts/                # Checkpoints, eval outputs, plots
+[project-root]/
+├── 00-dev-log/                               # Research notes and execution logs
+├── 00-supporting-files/
+│   ├── data/
+│   │   ├── raw/                              # Immutable source media/chat assets
+│   │   ├── staged/                           # Normalized transcript/chat/alignment outputs
+│   │   ├── curated/                          # Train-ready datasets and split manifests
+│   │   └── artifacts/                        # Training checkpoints, eval reports, plots
+│   └── images/                               # Snapshot images and debug captures
+├── 02-worktrees/
+│   ├── README.md                             # Worktree lifecycle and naming convention
+│   └── <feature-worktree>/
+│       ├── pyproject.toml                    # Worktree-local dependencies
+│       ├── ingest/                           # Source adapters + deterministic manifests
+│       ├── extract/                          # ffmpeg/ASR/OCR stages
+│       ├── align/                            # Candidate windows + scoring
+│       ├── curate/                           # QA gates, dedupe, export
+│       ├── train/                            # PEFT/TRL training + eval entrypoints
+│       └── tests/                            # Worktree-local tests
+└── .planning/
+    ├── research/                             # Domain research and architecture decisions
+    └── codebase/                             # Repository structure and conventions mapping
 ```
 
 ### Structure Rationale
 
-- **`contracts/`:** centralizes schema ownership so extraction/alignment/training cannot silently drift.
-- **`ingest/` and `extract/`:** isolates source volatility from core logic and keeps transformations reproducible.
-- **`align/` and `curate/`:** separates "pairing logic" from "quality policy" so you can tune each independently.
-- **`train/`:** keeps model iteration independent from data engineering, while consuming only curated contracts.
-- **`infra/`:** enforces lineage and run reproducibility without mixing orchestration code into domain logic.
+- **`02-worktrees/<feature-worktree>/`:** isolates branch-scoped implementation so parallel experiments do not collide.
+- **`00-supporting-files/data/`:** keeps durable artifacts in one canonical location shared across worktrees.
+- **`ingest/` -> `train/` inside each worktree:** preserves clear stage boundaries while keeping code near the active branch context.
+- **`tests/` inside each worktree:** matches current repo convention where there is no single root test harness.
+- **`.planning/research/` and `.planning/codebase/`:** keeps planning context in tracked root docs while implementation stays worktree-local.
 
 ## Architectural Patterns
 
@@ -91,16 +85,29 @@ data/
 **Trade-offs:** Extra storage and slower early iteration, but drastically lower rewrite risk.
 
 **Example:**
-```typescript
-type RawAsset = { assetId: string; sourceUri: string; sha256: string };
-type StagedUtterance = { assetId: string; startMs: number; endMs: number; text: string };
-type CuratedPair = {
-  sampleId: string;
-  prompt: string;
-  response: string;
-  alignmentScore: number;
-  provenance: { assetId: string; speechSpanMs: [number, number]; chatSpanMs: [number, number] };
-};
+```python
+from typing import TypedDict
+
+
+class RawAsset(TypedDict):
+    asset_id: str
+    source_uri: str
+    sha256: str
+
+
+class StagedUtterance(TypedDict):
+    asset_id: str
+    start_ms: int
+    end_ms: int
+    text: str
+
+
+class CuratedPair(TypedDict):
+    sample_id: str
+    prompt: str
+    response: str
+    alignment_score: float
+    provenance: dict[str, object]
 ```
 
 ### Pattern 2: Idempotent Stage Contracts with Content-addressed Outputs
@@ -110,10 +117,13 @@ type CuratedPair = {
 **Trade-offs:** More plumbing for manifests, but major savings in rerun cost and debugging time.
 
 **Example:**
-```typescript
-function stageKey(stageName: string, inputHashes: string[], configHash: string): string {
-  return sha256(`${stageName}:${inputHashes.sort().join(",")}:${configHash}`);
-}
+```python
+import hashlib
+
+
+def stage_key(stage_name: str, input_hashes: list[str], config_hash: str) -> str:
+    payload = f"{stage_name}:{','.join(sorted(input_hashes))}:{config_hash}"
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 ```
 
 ### Pattern 3: Alignment as Candidate Generation + Scoring, Not Direct Join
@@ -123,11 +133,10 @@ function stageKey(stageName: string, inputHashes: string[], configHash: string):
 **Trade-offs:** Slightly more complexity than nearest-neighbor timestamps, much better precision.
 
 **Example:**
-```typescript
-function buildCandidates(speechStartMs: number, speechEndMs: number, chatEvents: number[]): number[] {
-  const preWindow = [speechStartMs - 8000, speechStartMs + 2000];
-  return chatEvents.filter((ts) => ts >= preWindow[0] && ts <= preWindow[1]);
-}
+```python
+def build_candidates(speech_start_ms: int, speech_end_ms: int, chat_events: list[int]) -> list[int]:
+    pre_window = (speech_start_ms - 8000, speech_start_ms + 2000)
+    return [ts for ts in chat_events if pre_window[0] <= ts <= pre_window[1]]
 ```
 
 ## Data Flow
@@ -198,10 +207,22 @@ function buildCandidates(speechStartMs: number, speechEndMs: number, chatEvents:
    - Dedup, safety/quality filters, split generation, final export.
    - Why sixth: training only on validated, contract-compliant data avoids expensive bad runs.
 
-<<<<<<< HEAD
 7. **Fine-tuning and evaluation harness**
    - Add TRL + PEFT training scripts and repeatable eval suites.
    - Why last: model iteration is only useful after alignment quality is measurable and stable.
+
+## Where Automation Lives
+
+### GSD Instructions + Worktree Rules (primary)
+
+The automation engine is GSD plus Git worktree conventions:
+
+1. **`02-worktrees/README.md`** defines branch/worktree lifecycle commands.
+2. **`.planning/PROJECT.md`** defines requirements and execution intent.
+3. **`.planning/codebase/` + `.planning/research/`** encode structure and decision context.
+4. **GSD orchestration** executes git/worktree/file-edit flows directly per task.
+
+This repo intentionally avoids heavy script wrappers in v1 because worktree operations are simple and infrequent, and the AI workflow already executes git commands deterministically.
 
 ## Scaling Considerations
 
@@ -235,31 +256,6 @@ function buildCandidates(speechStartMs: number, speechEndMs: number, chatEvents:
 **What people do:** rerun training with changed templates/splits but same run label.
 **Why it is wrong:** metrics are not comparable and regressions become invisible.
 **Do this instead:** hash prompt templates + split manifests and log them as first-class run artifacts.
-=======
-
-## Where Automation Lives
-
-### GSD Instructions (primary — not scripts)
-
-The GSD AI workflow system is the automation engine. It reads `.planning/PROJECT.md` and the codebase context files to understand what to do. The "automation" is encoded as:
-
-1. **PROJECT.md requirements** — the checklist of what GSD must do for a new project
-2. **Codebase docs** (`.planning/codebase/`) — how the repo is structured
-3. **Research docs** (`.planning/research/`) — architectural decisions and patterns
-4. **GSD's own orchestration** — branching, file editing, committing
-
-**Why not shell scripts:** This is a personal template repo, not a team tool. The user interacts through GSD (AI orchestrator), not CLI scripts. Shell scripts add maintenance burden for a single-person workflow. GSD can execute the git commands directly.
-
-### When Scripts WOULD Make Sense (future consideration)
-
-If the template were shared with a team or the workflow became complex enough that GSD needed a "run this script" step, then a thin shell script would be appropriate. Candidates:
-
-- **Worktree cleanup:** `git worktree prune` + removal of stale entries from root README
-- **Dependency sync:** `uv sync` in a worktree after branch creation
-- **Validation:** Check that a branch's README is populated and `pyproject.toml` name is updated
-
-These would live in a `scripts/` directory on `master` if ever needed. For now, GSD handles all of this inline.
->>>>>>> template/vibe-coding-gsd
 
 ## Integration Points
 

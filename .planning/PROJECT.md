@@ -35,7 +35,7 @@ The project is greenfield for planning artifacts but targets an existing code re
 ## Constraints
 
 - **Budget**: Zero recurring API cost — all extraction, transcription, alignment, and training must use local/free tools.
-- **Tech stack**: Local-first scripts and model tooling — avoids dependence on cloud services.
+- **Tech stack**: Python-first local scripts and model tooling — avoids dependence on cloud services.
 - **Data quality**: Timestamp fidelity is required — poor alignment will degrade fine-tuning outcomes.
 - **User fit**: Designed for DougDoug persona interactions — prompt/response format must reflect stream dynamics.
 
