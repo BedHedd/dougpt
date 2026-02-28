@@ -13,7 +13,7 @@ This roadmap delivers a local-first pipeline that turns DougDoug videos into tru
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Deterministic Video Ingestion** - Build stable local source manifests and repeatable chat extraction inputs.
-- [ ] **Phase 2: Local Speech Transcript Extraction** - Produce DougDoug-only, timestamped, normalized transcript data for alignment.
+- [x] **Phase 2: Local Speech Transcript Extraction** - Produce DougDoug-only, timestamped, normalized transcript data for alignment.
 - [ ] **Phase 3: Alignment and Dataset Curation** - Convert timelines into confidence-scored, QA-filtered training samples.
 - [ ] **Phase 4: Reproducible Training and End-to-End Ops** - Fine-tune locally, evaluate quality deltas, and run full pipeline with tracked artifacts.
 
