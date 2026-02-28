@@ -37,7 +37,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. User can extract a DougDoug-only audio track from each ingested stream video using local tooling.
   2. User can generate timestamped speech transcripts locally with no paid API dependency.
   3. User can export normalized transcript segments that include confidence metadata for alignment decisions.
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 02-local-speech-transcript-extraction/02-01-PLAN.md — Deterministic demux + optional UVR5 vocal isolation with manifest logging
+- [ ] 02-local-speech-transcript-extraction/02-02-PLAN.md — ROCm/CPU ASR runners (WhisperX, moonshine, whisper.cpp) with normalized transcript export
 
 ### Phase 3: Alignment and Dataset Curation
 **Goal**: Users can produce canonical, quality-filtered DougDoug prompt to Twitch chat response training datasets from aligned timelines.
@@ -70,6 +74,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Deterministic Video Ingestion | Complete | Completed | 2026-02-27 |
-| 2. Local Speech Transcript Extraction | 0/TBD | Not started | - |
+| 2. Local Speech Transcript Extraction | 0/2 | Planned | - |
 | 3. Alignment and Dataset Curation | 0/TBD | Not started | - |
 | 4. Reproducible Training and End-to-End Ops | 0/TBD | Not started | - |

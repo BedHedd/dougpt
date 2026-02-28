@@ -10,11 +10,11 @@ See: `.planning/PROJECT.md` (updated 2026-02-26)
 ## Current Position
 
 Phase: 2 of 4 (Local Speech Transcript Extraction)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-02-27 - Phase 1 marked complete in roadmap and requirements tracking.
+Plan: 1 of 2 in current phase
+Status: In Progress
+Last activity: 2026-02-28 - Plan 02-01 (Audio Prep Worktree) completed.
 
-Progress: [██░░░░░░░░] 25%
+Progress: [███░░░░░░░] 35%
 
 ## Performance Metrics
 
@@ -42,6 +42,8 @@ Recent decisions affecting current work:
 
 - Phase 1-4 structure follows dependency chain: ingestion -> transcript extraction -> alignment/curation -> training/ops.
 - v1 scope excludes realtime/live workflows and paid external services.
+- Audio prep uses spectral analysis (flatness, centroid, bandwidth) for overlap detection heuristic (02-01).
+- Quality flags in prep manifests enable downstream filtering without dropping audio (02-01).
 
 ### Pending Todos
 
