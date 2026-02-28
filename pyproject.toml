@@ -1,11 +1,58 @@
 [project]
-name = "dougpt"
+name = "asr-runner"
 version = "0.1.0"
-description = "make a ai trained off of dougdoug's twitch chat"
+description = "ROCm-friendly ASR pipeline for DougDoug transcript extraction"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "ipykernel>=6.29.5",
-    "openai>=1.91.0",
-    "python-dotenv>=1.1.0",
+    # Core audio processing
+    "ffmpeg-python>=0.2.0",
+    "soundfile>=0.12.1",
+    "librosa>=0.10.2",
+    # CLI and logging
+    "rich>=13.9.0",
+    "loguru>=0.7.2",
+    "typer>=0.12.5",
+    # Data validation
+    "pydantic>=2.10.0",
+    "numpy>=2.0.0",
+    # ASR stack
+    "faster-whisper>=1.2.0",
+    # Note: whisperx 3.8.x requires torch - install via:
+    # uv pip install whisperx --index-url https://download.pytorch.org/whl/rocm6.0
+    # Or for CPU: uv pip install whisperx
+    # whisperx>=3.8.0  # Install separately for ROCm compatibility
+    # pyannote.audio for diarization - requires HF_TOKEN
+    # pyannote.audio>=3.2.0  # Install separately, requires HF token acceptance
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.8.0",
+]
+# Optional extras for vocal isolation and diarization
+separation = [
+    "demucs>=4.0.0",
+]
+diarization = [
+    "pyannote.audio>=3.2.0",
+]
+
+[project.scripts]
+audio-prep = "audio_prep:app"
+asr-pipeline = "asr_pipeline:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
