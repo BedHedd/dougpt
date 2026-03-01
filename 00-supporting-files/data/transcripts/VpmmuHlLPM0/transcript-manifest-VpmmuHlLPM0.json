@@ -1,0 +1,21 @@
+{
+  "source_id": "VpmmuHlLPM0",
+  "audio_path": "/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/dougpt/00-supporting-files/data/transcripts/VpmmuHlLPM0/source-VpmmuHlLPM0-mono16k.wav",
+  "manifest_path": "/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/dougpt/00-supporting-files/data/transcripts/VpmmuHlLPM0/prep-manifest-VpmmuHlLPM0.json",
+  "model": "moonshine-medium",
+  "language": "en",
+  "compute_type": "onnx",
+  "device": "auto",
+  "total_segments": 3522,
+  "total_duration_seconds": 15672.02160437441,
+  "total_words": 37475,
+  "avg_confidence": 0.0,
+  "low_confidence_segments": 3522,
+  "quality_summary": {
+    "no_speaker": 3522,
+    "short_segment": 155
+  },
+  "raw_output": "/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/dougpt/00-supporting-files/data/transcripts/VpmmuHlLPM0/segments-VpmmuHlLPM0-raw.jsonl",
+  "normalized_output": "/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/dougpt/00-supporting-files/data/transcripts/VpmmuHlLPM0/segments-VpmmuHlLPM0-normalized.jsonl",
+  "created_at": "2026-03-01T06:23:57.355547+00:00"
+}

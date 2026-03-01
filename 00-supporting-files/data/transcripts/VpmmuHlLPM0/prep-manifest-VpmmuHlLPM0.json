@@ -1,0 +1,18 @@
+{
+  "source_id": "VpmmuHlLPM0",
+  "source_path": "/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/large-files/Doug and Twitch Chat TAKE OVER EUROPE-VpmmuHlLPM0.mkv",
+  "output_path": "/home/bedhedd/Documents/development_projects/bedhedd_projects/dougpt/dougpt/00-supporting-files/data/transcripts/VpmmuHlLPM0/source-VpmmuHlLPM0-mono16k.wav",
+  "duration_seconds": 15932.917563,
+  "sample_rate": 16000,
+  "channels": 1,
+  "channel_map": "mono_demuxed",
+  "checksum_sha256": "7f9160ed6070b96d00c7721a02b01d537685da28c3e10fc13fe82e02ff69dd93",
+  "isolation_triggered": false,
+  "isolation_method": null,
+  "isolation_quality_score": null,
+  "overlap_score": 0.0,
+  "snr_estimate_db": 33.82182312011719,
+  "quality_flags": [],
+  "run_timestamp": "2026-02-28T22:49:48.767497+00:00",
+  "warnings": []
+}
