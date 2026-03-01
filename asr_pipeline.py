@@ -2,13 +2,11 @@
 """
 ASR Pipeline CLI for DougDoug transcript extraction.
 
-Consumes prepped audio from audio_prep.py, runs faster-whisper + whisperX
-alignment with optional diarization, and exports normalized JSONL segments
-with confidence metadata.
+Consumes prepped audio from audio_prep.py, runs Moonshine ASR,
+and exports normalized JSONL segments with confidence metadata.
 """
 
 import json
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -19,27 +17,19 @@ from rich.panel import Panel
 from rich.table import Table
 
 from utils.paths import (
-    project_parent,
     transcripts_dir,
     resolve_transcript_dir,
-    check_rocm_visibility,
 )
 from utils.export import (
-    export_raw_segments,
-    export_normalized_segments,
     write_transcript_manifest,
     load_prep_manifest,
     resolve_audio_for_asr,
 )
 from utils.confidence import (
-    aggregate_segment_confidence,
-    flag_low_confidence_segments,
     compute_quality_summary,
     compute_segment_statistics,
-    confidence_from_logprob,
 )
 from schemas.transcript import (
-    WordTiming,
     RawSegment,
     NormalizedSegment,
     TranscriptManifest,
@@ -52,9 +42,10 @@ app = typer.Typer(
 )
 console = Console()
 
+MOONSHINE_MODEL_CACHE = Path.home() / ".cache" / "moonshine_voice" / "download.moonshine.ai"
+
 
 def configure_logging(verbose: bool = False):
-    """Configure loguru logging."""
     import sys
 
     logger.remove()
@@ -67,23 +58,66 @@ def configure_logging(verbose: bool = False):
 
 
 def normalize_text(text: str) -> str:
-    """
-    Normalize transcript text.
-
-    - Sentence case
-    - Trim whitespace
-    - Keep fillers as spoken
-    """
     text = text.strip()
     if not text:
         return ""
-    # Sentence case: capitalize first letter
     return text[0].upper() + text[1:] if len(text) > 1 else text.upper()
 
 
 def segment_id_from_timing(source_id: str, start_ms: int) -> str:
-    """Generate segment ID from source and timing."""
     return f"{source_id}-{start_ms:06d}"
+
+
+def get_moonshine_model_path(model: str, language: str = "en") -> tuple[str, int]:
+    """
+    Resolve Moonshine model path.
+    Returns (path, arch_int) where arch_int is the model architecture number.
+    """
+    model_map = {
+        "tiny": ("tiny-streaming-en", 1),
+        "base": ("base-streaming-en", 2),
+        "small": ("small-streaming-en", 3),
+        "medium": ("medium-streaming-en", 5),
+    }
+
+    if model in model_map:
+        model_name, arch = model_map[model]
+    else:
+        model_name, arch = model_map["medium"]
+
+    model_path = MOONSHINE_MODEL_CACHE / "model" / model_name / "quantized"
+    if not model_path.exists():
+        raise FileNotFoundError(
+            f"Model not found at {model_path}. "
+            f"Run: uv run python -m moonshine_voice.download --language {language}"
+        )
+
+    return str(model_path), arch
+
+
+class StreamingJSONLWriter:
+    """Writes segments to JSONL files as they're processed."""
+
+    def __init__(self, output_dir: Path, source_id: str):
+        self.output_dir = output_dir
+        self.source_id = source_id
+        self.raw_path = output_dir / f"segments-{source_id}-raw.jsonl"
+        self.norm_path = output_dir / f"segments-{source_id}-normalized.jsonl"
+        self.raw_file = open(self.raw_path, "w")
+        self.norm_file = open(self.norm_path, "w")
+        self.count = 0
+
+    def write_segment(self, raw: RawSegment, normalized: NormalizedSegment):
+        self.raw_file.write(raw.model_dump_json() + "\n")
+        self.norm_file.write(normalized.model_dump_json() + "\n")
+        self.count += 1
+
+    def close(self):
+        self.raw_file.close()
+        self.norm_file.close()
+
+    def paths(self) -> tuple[Path, Path]:
+        return self.raw_path, self.norm_path
 
 
 @app.command()
@@ -94,35 +128,24 @@ def transcribe(
     input_audio: Optional[str] = typer.Option(
         None, "--input", "-i", help="Input audio file (default: auto-resolve from prep)"
     ),
-    model: str = typer.Option("large-v3", "--model", "-m", help="Whisper model to use"),
-    language: Optional[str] = typer.Option(
-        None, "--language", "-l", help="Language code (auto-detect if not specified)"
+    model: str = typer.Option(
+        "medium", "--model", "-m", help="Moonshine model: tiny, base, small, medium"
     ),
-    device: str = typer.Option("cuda", "--device", "-d", help="Device: cuda or cpu"),
-    compute_type: str = typer.Option(
-        "float16", "--compute-type", "-c", help="Compute type: float16, int8, float32"
-    ),
+    language: str = typer.Option("en", "--language", "-l", help="Language code"),
     min_confidence: float = typer.Option(
-        0.70, "--min-confidence", help="Minimum confidence for export"
+        0.70, "--min-confidence", help="Minimum confidence threshold for quality flags"
     ),
-    skip_diarization: bool = typer.Option(
-        False, "--skip-diarization", help="Skip speaker diarization"
+    chunk_seconds: int = typer.Option(
+        300, "--chunk-size", help="Process audio in chunks of this many seconds"
     ),
-    skip_alignment: bool = typer.Option(False, "--skip-alignment", help="Skip whisperX alignment"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show plan without running"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
 ) -> None:
     """
-    Run ASR transcription on prepared audio.
-
-    Consumes audio from audio_prep.py and exports JSONL transcripts.
+    Run ASR transcription on prepared audio using Moonshine.
     """
     configure_logging(verbose)
 
-    # Check ROCm availability
-    check_rocm_visibility()
-
-    # Resolve input audio
     if input_audio:
         audio_path = Path(input_audio)
         if not audio_path.is_absolute():
@@ -132,7 +155,7 @@ def transcribe(
         if audio_path is None:
             console.print(f"[red]Error: No prepared audio found for source: {source_id}[/red]")
             console.print(
-                "Run audio-prep first: uv run python audio_prep.py prep --source-id {source_id} --input <video>"
+                f"Run audio-prep first: uv run python audio_prep.py prep --source-id {source_id} --input <video>"
             )
             raise typer.Exit(1)
 
@@ -140,20 +163,18 @@ def transcribe(
         console.print(f"[red]Error: Audio file not found: {audio_path}[/red]")
         raise typer.Exit(1)
 
-    # Load prep manifest for metadata
     prep_manifest = load_prep_manifest(source_id, transcripts_dir)
-
-    # Output directory
     output_dir = resolve_transcript_dir(source_id)
 
     console.print(
         Panel(
             f"[bold]Source ID:[/bold] {source_id}\n"
             f"[bold]Audio:[/bold] {audio_path}\n"
-            f"[bold]Model:[/bold] {model}\n"
-            f"[bold]Device:[/bold] {device}\n"
+            f"[bold]Model:[/bold] moonshine-{model}\n"
+            f"[bold]Language:[/bold] {language}\n"
+            f"[bold]Chunk Size:[/bold] {chunk_seconds}s\n"
             f"[bold]Output:[/bold] {output_dir}",
-            title="ASR Pipeline",
+            title="Moonshine ASR Pipeline",
             border_style="blue",
         )
     )
@@ -162,224 +183,129 @@ def transcribe(
         console.print("[yellow]Dry run - not executing transcription[/yellow]")
         return
 
-    # Import ASR libraries
+    from moonshine_voice import Transcriber, load_wav_file, ModelArch
+
     try:
-        from faster_whisper import WhisperModel
-    except ImportError:
-        console.print("[red]Error: faster-whisper not installed[/red]")
-        console.print("Install with: uv pip install faster-whisper")
+        model_path, model_arch_int = get_moonshine_model_path(model, language)
+    except FileNotFoundError as e:
+        console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1)
 
-    # Step 1: Run faster-whisper transcription
-    console.print("[bold cyan]Step 1: Running faster-whisper transcription...[/bold cyan]")
+    console.print(f"[bold cyan]Loading Moonshine model from {model_path}...[/bold cyan]")
 
-    whisper_model = WhisperModel(
-        model,
-        device=device,
-        compute_type=compute_type,
-    )
+    arch_map = {
+        1: ModelArch.TINY_STREAMING,
+        2: ModelArch.BASE_STREAMING,
+        3: ModelArch.SMALL_STREAMING,
+        5: ModelArch.MEDIUM_STREAMING,
+    }
+    model_arch = arch_map.get(model_arch_int, ModelArch.MEDIUM_STREAMING)
 
-    segments, info = whisper_model.transcribe(
-        str(audio_path),
-        language=language,
-        word_timestamps=True,
-        vad_filter=True,
-        vad_parameters={"min_silence_duration_ms": 500},
-    )
-    segments = list(segments)
+    console.print("[bold cyan]Loading audio...[/bold cyan]")
+    audio_data, sample_rate = load_wav_file(audio_path)
+    total_samples = len(audio_data)
+    duration_seconds = total_samples / sample_rate
+    console.print(f"[green]Loaded {duration_seconds:.2f}s of audio ({sample_rate}Hz)[/green]")
 
-    console.print(
-        f"[green]Transcribed {len(segments)} segments "
-        f"(language: {info.language}, probability: {info.language_probability:.2f})[/green]"
-    )
+    transcriber = Transcriber(model_path=model_path, model_arch=model_arch)
 
-    # Convert to RawSegment objects
-    raw_segments = []
-    for seg in segments:
-        words = []
-        for w in seg.words:
-            word_conf = confidence_from_logprob(w.probability) if w.probability else None
-            words.append(
-                WordTiming(
-                    word=w.word,
-                    start=w.start,
-                    end=w.end,
-                    confidence=word_conf,
-                    logprob=w.probability,
-                )
-            )
+    writer = StreamingJSONLWriter(output_dir, source_id)
+    all_segments = []
 
-        raw_segments.append(
-            RawSegment(
-                text=seg.text,
-                start=seg.start,
-                end=seg.end,
-                words=words,
-                speaker=None,  # Will be filled by diarization
-                language=info.language,
-                language_probability=info.language_probability,
-            )
+    chunk_samples = chunk_seconds * sample_rate
+    num_chunks = (total_samples + chunk_samples - 1) // chunk_samples
+
+    console.print(f"[bold cyan]Transcribing in {num_chunks} chunks...[/bold cyan]")
+
+    for chunk_idx in range(num_chunks):
+        start_sample = chunk_idx * chunk_samples
+        end_sample = min((chunk_idx + 1) * chunk_samples, total_samples)
+        chunk_audio = audio_data[start_sample:end_sample]
+        chunk_duration = len(chunk_audio) / sample_rate
+        chunk_offset = start_sample / sample_rate
+
+        console.print(
+            f"[dim]Chunk {chunk_idx + 1}/{num_chunks}: {chunk_offset:.1f}s - {chunk_offset + chunk_duration:.1f}s[/dim]"
         )
 
-    # Step 2: Run whisperX alignment (optional)
-    if not skip_alignment:
-        console.print("[bold cyan]Step 2: Running whisperX alignment...[/bold cyan]")
         try:
-            import whisperx
-
-            # Load audio
-            audio = whisperx.load_audio(str(audio_path))
-
-            # Load alignment model
-            align_model, align_metadata = whisperx.load_align_model(
-                language_code=info.language,
-                device=device,
-            )
-
-            # Prepare segments for alignment
-            seg_dicts = [{"start": s.start, "end": s.end, "text": s.text} for s in raw_segments]
-
-            # Align
-            aligned = whisperx.align(
-                seg_dicts,
-                align_model,
-                align_metadata,
-                audio,
-                device,
-            )
-
-            # Update segments with aligned timings
-            for i, seg in enumerate(aligned.get("segments", [])):
-                if i < len(raw_segments):
-                    raw_segments[i].start = seg.get("start", raw_segments[i].start)
-                    raw_segments[i].end = seg.get("end", raw_segments[i].end)
-                    # Update words if available
-                    if "words" in seg:
-                        raw_segments[i].words = [
-                            WordTiming(
-                                word=w.get("word", ""),
-                                start=w.get("start", 0),
-                                end=w.get("end", 0),
-                                confidence=w.get("score"),
-                            )
-                            for w in seg["words"]
-                        ]
-
-            console.print("[green]Alignment complete[/green]")
-
-        except ImportError:
-            console.print("[yellow]whisperX not installed, skipping alignment[/yellow]")
+            transcript = transcriber.transcribe_without_streaming(chunk_audio, sample_rate)
         except Exception as e:
-            logger.warning(f"Alignment failed: {e}")
-            console.print(f"[yellow]Alignment failed: {e}[/yellow]")
+            logger.error(f"Chunk {chunk_idx + 1} failed: {e}")
+            continue
 
-    # Step 3: Run diarization (optional)
-    if not skip_diarization:
-        console.print("[bold cyan]Step 3: Running speaker diarization...[/bold cyan]")
-        hf_token = os.environ.get("HF_TOKEN")
+        lines = transcript.lines
+        for i, line in enumerate(lines):
+            start_time = line.start_time + chunk_offset
+            if i + 1 < len(lines):
+                end_time = lines[i + 1].start_time + chunk_offset
+            else:
+                end_time = chunk_offset + chunk_duration
 
-        if not hf_token:
-            console.print("[yellow]HF_TOKEN not set, skipping diarization[/yellow]")
-            console.print("Set HF_TOKEN environment variable to enable diarization")
-        else:
-            try:
-                import whisperx
+            text = line.text.strip()
+            if not text:
+                continue
 
-                diarize_model = whisperx.DiarizationPipeline(
-                    use_auth_token=hf_token,
-                    device=device,
-                )
+            start_ms = int(start_time * 1000)
+            seg_id = segment_id_from_timing(source_id, start_ms)
 
-                audio = whisperx.load_audio(str(audio_path))
-                diar_segments = diarize_model(audio)
-
-                # Assign speakers to segments
-                for seg in raw_segments:
-                    # Find overlapping diarization segment
-                    seg_mid = (seg.start + seg.end) / 2
-                    for ds in diar_segments:
-                        if ds["start"] <= seg_mid <= ds["end"]:
-                            seg.speaker = f"SPEAKER_{ds.get('speaker', '00')}"
-                            break
-
-                console.print("[green]Diarization complete[/green]")
-
-            except ImportError:
-                console.print("[yellow]whisperX not installed, skipping diarization[/yellow]")
-            except Exception as e:
-                logger.warning(f"Diarization failed: {e}")
-                console.print(f"[yellow]Diarization failed: {e}[/yellow]")
-
-    # Step 4: Create normalized segments
-    console.print("[bold cyan]Step 4: Creating normalized segments...[/bold cyan]")
-
-    normalized_segments = []
-    for seg in raw_segments:
-        # Aggregate confidence
-        seg_conf, low_conf_words, total_words = aggregate_segment_confidence(
-            seg.words, method="mean"
-        )
-
-        # Create segment ID
-        start_ms = int(seg.start * 1000)
-        seg_id = segment_id_from_timing(source_id, start_ms)
-
-        # Quality flags
-        quality_flags = []
-        if seg_conf < min_confidence:
-            quality_flags.append("low_confidence")
-        if seg.end - seg.start < 1.0:
-            quality_flags.append("short_segment")
-        if seg.speaker is None:
+            quality_flags = []
+            if end_time - start_time < 1.0:
+                quality_flags.append("short_segment")
             quality_flags.append("no_speaker")
 
-        normalized_segments.append(
-            NormalizedSegment(
+            raw = RawSegment(
+                text=text,
+                start=start_time,
+                end=end_time,
+                words=[],
+                speaker=None,
+                language=language,
+                language_probability=None,
+            )
+
+            norm = NormalizedSegment(
                 segment_id=seg_id,
                 source_id=source_id,
-                start=seg.start,
-                end=seg.end,
-                duration_seconds=seg.end - seg.start,
-                text_raw=seg.text,
-                text_normalized=normalize_text(seg.text),
-                speaker=seg.speaker,
-                confidence=seg_conf,
-                confidence_method="mean_word",
-                word_count=total_words,
-                low_confidence_words=low_conf_words,
+                start=start_time,
+                end=end_time,
+                duration_seconds=end_time - start_time,
+                text_raw=text,
+                text_normalized=normalize_text(text),
+                speaker=None,
+                confidence=0.0,
+                confidence_method="none",
+                word_count=len(text.split()),
+                low_confidence_words=0,
                 quality_flags=quality_flags,
-                words=seg.words,
-                sample_rate=16000,
+                words=[],
+                sample_rate=sample_rate,
                 channel_map=prep_manifest.get("channel_map", "mono") if prep_manifest else "mono",
             )
-        )
 
-    # Flag low-confidence segments
-    flag_low_confidence_segments(normalized_segments, threshold=min_confidence)
+            writer.write_segment(raw, norm)
+            all_segments.append(norm)
 
-    # Step 5: Export
-    console.print("[bold cyan]Step 5: Exporting transcripts...[/bold cyan]")
+    transcriber.close()
+    writer.close()
 
-    raw_path = export_raw_segments(raw_segments, output_dir, source_id)
-    norm_path, norm_count = export_normalized_segments(
-        normalized_segments, output_dir, source_id, min_confidence=min_confidence
-    )
+    raw_path, norm_path = writer.paths()
 
-    # Compute statistics
-    stats = compute_segment_statistics(normalized_segments)
-    quality_summary = compute_quality_summary(normalized_segments)
+    console.print(f"[green]Transcribed {len(all_segments)} total segments[/green]")
 
-    # Write manifest
+    stats = compute_segment_statistics(all_segments)
+    quality_summary = compute_quality_summary(all_segments)
+
     manifest = TranscriptManifest(
         source_id=source_id,
         audio_path=str(audio_path),
         manifest_path=str(output_dir / f"prep-manifest-{source_id}.json")
         if prep_manifest
         else None,
-        model=model,
-        language=info.language,
-        compute_type=compute_type,
-        device=device,
+        model=f"moonshine-{model}",
+        language=language,
+        compute_type="onnx",
+        device="auto",
         total_segments=stats["total_segments"],
         total_duration_seconds=stats["total_duration_seconds"],
         total_words=stats["total_words"],
@@ -390,14 +316,11 @@ def transcribe(
         normalized_output=str(norm_path),
     )
 
-    manifest_path = write_transcript_manifest(manifest, output_dir)
-
-    # Summary
+    write_transcript_manifest(manifest, output_dir)
     _print_summary(manifest, raw_path, norm_path)
 
 
 def _print_summary(manifest: TranscriptManifest, raw_path: Path, norm_path: Path) -> None:
-    """Print a summary table of the ASR run."""
     table = Table(title="ASR Pipeline Summary")
     table.add_column("Property", style="cyan")
     table.add_column("Value", style="green")
@@ -408,8 +331,6 @@ def _print_summary(manifest: TranscriptManifest, raw_path: Path, norm_path: Path
     table.add_row("Total Segments", str(manifest.total_segments))
     table.add_row("Total Duration", f"{manifest.total_duration_seconds:.2f}s")
     table.add_row("Total Words", str(manifest.total_words))
-    table.add_row("Avg Confidence", f"{manifest.avg_confidence:.2f}")
-    table.add_row("Low Confidence Segments", str(manifest.low_confidence_segments))
 
     console.print(table)
 
@@ -448,6 +369,18 @@ def info(
         table.add_row(key.replace("_", " ").title(), str(value))
 
     console.print(table)
+
+
+@app.command()
+def download(
+    language: str = typer.Option("en", "--language", "-l", help="Language to download"),
+) -> None:
+    """Download Moonshine model for a language."""
+    from moonshine_voice import download as moonshine_download
+
+    console.print(f"[bold cyan]Downloading Moonshine model for language: {language}[/bold cyan]")
+    moonshine_download(language)
+    console.print("[green]Download complete![/green]")
 
 
 if __name__ == "__main__":
