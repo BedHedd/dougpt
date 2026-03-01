@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Deterministic Video Ingestion** - Build stable local source manifests and repeatable chat extraction inputs.
 - [x] **Phase 2: Local Speech Transcript Extraction** - Produce DougDoug-only, timestamped, normalized transcript data for alignment.
-- [ ] **Phase 3: Alignment and Dataset Curation** - Convert timelines into confidence-scored, QA-filtered training samples.
+- [ ] **Phase 3: Alignment and Dataset Curation** - Convert timelines into confidence-scored, QA-filtered training samples and provide a local inspection webapp for transcript/chat outputs.
 - [ ] **Phase 4: Reproducible Training and End-to-End Ops** - Fine-tune locally, evaluate quality deltas, and run full pipeline with tracked artifacts.
 
 ## Phase Details
@@ -44,14 +44,15 @@ Plans:
 - [ ] 02-local-speech-transcript-extraction/02-02-PLAN.md — ROCm/CPU ASR runners (WhisperX, moonshine, whisper.cpp) with normalized transcript export
 
 ### Phase 3: Alignment and Dataset Curation
-**Goal**: Users can produce canonical, quality-filtered DougDoug prompt to Twitch chat response training datasets from aligned timelines.
+**Goal**: Users can produce canonical, quality-filtered DougDoug prompt to Twitch chat response training datasets from aligned timelines and inspect transcript/chat outputs in a local webapp.
 **Depends on**: Phase 2
-**Requirements**: ALG-01, ALG-02, ALG-03, ALG-04
+**Requirements**: ALG-01, ALG-02, ALG-03, ALG-04, ALG-05
 **Success Criteria** (what must be TRUE):
   1. User can align speech windows to candidate chat response windows using reproducible rules.
   2. User can score alignment confidence and exclude low-quality pairings before export.
   3. User can export curated prompt/response samples in a canonical schema with provenance fields.
   4. User can run QA filters that remove duplicate, empty, or malformed records before training.
+  5. User can open a local webapp to inspect transcript segments and chat message outputs from `00-supporting-files/data/transcripts/` and `00-supporting-files/data/extractions/deduped-frames.json`.
 **Plans**: TBD
 
 ### Phase 4: Reproducible Training and End-to-End Ops

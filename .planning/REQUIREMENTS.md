@@ -25,6 +25,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **ALG-02**: User can score alignment confidence and reject low-quality pairs.
 - [ ] **ALG-03**: User can export curated prompt/response training samples in a canonical schema with provenance fields.
 - [ ] **ALG-04**: User can run dataset QA filters to remove duplicate, empty, or malformed records before training.
+- [ ] **ALG-05**: User can inspect transcript segments and extracted chat outputs in a local webapp before dataset export.
 
 ### Training and Evaluation
 
@@ -78,6 +79,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ALG-02 | Phase 3 | Pending |
 | ALG-03 | Phase 3 | Pending |
 | ALG-04 | Phase 3 | Pending |
+| ALG-05 | Phase 3 | Pending |
 | TRN-01 | Phase 4 | Pending |
 | TRN-02 | Phase 4 | Pending |
 | TRN-03 | Phase 4 | Pending |
@@ -85,8 +87,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OPS-02 | Phase 4 | Pending |
 
 **Coverage:**
-- v1 requirements: 15 total
-- Mapped to phases: 15
+- v1 requirements: 16 total
+- Mapped to phases: 16
 - Unmapped: 0
 
 ---
