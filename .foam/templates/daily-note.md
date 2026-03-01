@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-# ${CURRENT_YEAR}-${CURRENT_MONTH}-${CURRENT_DATE}
-## overall progress
-- [ ] 
-
-## elaboration into overall progress
-=======
 ---
 type: daily-note
 foam_template:
@@ -15,4 +8,3 @@ foam_template:
 - [ ] 
 
 ## Elaboration into overall progress
->>>>>>> template/vibe-coding-gsd
